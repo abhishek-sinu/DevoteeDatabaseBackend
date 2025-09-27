@@ -155,6 +155,21 @@
       const query = `INSERT INTO devotees (${fields.join(', ')}) VALUES ${placeholders}`;
 
       await db.execute(query, flatValues);
+
+
+      // Insert into users table
+      const bcrypt = await import('bcrypt');
+      const defaultPassword = "Hari@108";
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+      const userInsertPromises = devotees.map(devotee => {
+        if (!devotee.email) return null;
+        return db.execute(
+            "INSERT IGNORE INTO users (email, password, role) VALUES (?, ?, ?)",
+            [devotee.email, hashedPassword, "user"]
+        );
+      });
+      await Promise.all(userInsertPromises.filter(Boolean));
       res.status(201).json({ message: "Bulk upload successful", count: devotees.length });
     } catch (err) {
       console.error("❌ Bulk upload error:", err);
@@ -241,6 +256,59 @@
     } catch (err) {
       console.error("❌ Error fetching sadhana entries:", err);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.put("/api/users/assign-role", verifyToken, allowAdmin, async (req, res) => {
+    const { email, role } = req.body;
+
+    if (!email || !role) {
+      return res.status(400).json({ error: "Email and role are required" });
+    }
+
+    const validRoles = ["user", "admin", "counsellor"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: "Invalid role specified" });
+    }
+
+    try {
+      const [result] = await db.execute(
+          "UPDATE users SET role = ? WHERE email = ?",
+          [role, email]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ message: `Role updated to '${role}' for ${email}` });
+    } catch (err) {
+      console.error("❌ Error updating role:", err);
+      res.status(500).json({ error: "Failed to update role", details: err.message });
+    }
+  });
+
+  app.get("/api/users/by-email", verifyToken, allowAdmin, async (req, res) => {
+    const { email } = req.query;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    try {
+      const [rows] = await db.execute(
+          "SELECT id, email, role, created_at FROM users WHERE email = ?",
+          [email]
+      );
+
+      if (rows.length === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json(rows[0]);
+    } catch (err) {
+      console.error("❌ Error fetching user by email:", err);
+      res.status(500).json({ error: "Failed to fetch user", details: err.message });
     }
   });
 
