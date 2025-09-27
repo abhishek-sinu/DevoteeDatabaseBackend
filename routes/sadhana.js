@@ -5,6 +5,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 const router = express.Router();
 
+const toMinutes = (value, unit) => {
+    const num = parseInt(value);
+    if (isNaN(num)) return null;
+    return unit === 'hours' ? num * 60 : num;
+};
+
 // 🔹 Create Sadhana Entry
 router.post('/add', async (req, res) => {
     const {
@@ -27,19 +33,27 @@ router.post('/add', async (req, res) => {
         }
 
         const userId = userRows[0].id;
+        const entryDateOnly = entryDate ? entryDate.split('T')[0] : null;
 
         const query = `
-            INSERT INTO sadhana_entries (
-                user_id, entry_date, wake_up_time, chanting_rounds,
-                reading_time, reading_topic, hearing_time, hearing_topic,
-                service_name, service_time
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        const entryDateOnly = entryDate ? entryDate.split('T')[0] : null;
+      INSERT INTO sadhana_entries (
+        user_id, entry_date, wake_up_time, chanting_rounds,
+        reading_time, reading_topic, hearing_time, hearing_topic,
+        service_name, service_time
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
         await db.execute(query, [
-            userId, entryDateOnly, wakeUpTime || null, chantingRounds || null,
-            readingTime || null, readingTopic || null, hearingTime || null, hearingTopic || null,
-            serviceName || null, serviceTime || null
+            userId,
+            entryDateOnly,
+            wakeUpTime,
+            chantingRounds,
+            readingTime,
+            readingTopic,
+            hearingTime,
+            hearingTopic,
+            serviceName,
+            serviceTime
         ]);
 
         res.status(201).json({ message: 'Sadhana entry added successfully' });
@@ -60,7 +74,6 @@ router.get('/entries/:email', async (req, res) => {
         }
 
         const userId = userRows[0].id;
-
         const [entries] = await db.execute(
             'SELECT * FROM sadhana_entries WHERE user_id = ? ORDER BY entry_date DESC',
             [userId]
@@ -97,15 +110,23 @@ router.put('/update', async (req, res) => {
         const userId = userRows[0].id;
 
         const query = `
-            UPDATE sadhana_entries SET
-                                       wake_up_time = ?, chanting_rounds = ?, reading_time = ?, reading_topic = ?,
-                                       hearing_time = ?, hearing_topic = ?, service_name = ?, service_time = ?
-            WHERE user_id = ? AND entry_date = ?
-        `;
+      UPDATE sadhana_entries SET
+        wake_up_time = ?, chanting_rounds = ?, reading_time = ?, reading_topic = ?,
+        hearing_time = ?, hearing_topic = ?, service_name = ?, service_time = ?
+      WHERE user_id = ? AND entry_date = ?
+    `;
+
         const [result] = await db.execute(query, [
-            wakeUpTime || null, chantingRounds || null, readingTime || null, readingTopic || null,
-            hearingTime || null, hearingTopic || null, serviceName || null, serviceTime || null,
-            userId, entryDate
+            wakeUpTime,
+            chantingRounds,
+            readingTime,
+            readingTopic,
+            hearingTime,
+            hearingTopic,
+            serviceName,
+            serviceTime,
+            userId,
+            entryDate
         ]);
 
         if (result.affectedRows === 0) {
@@ -130,7 +151,6 @@ router.delete('/delete', async (req, res) => {
         }
 
         const userId = userRows[0].id;
-
         const [result] = await db.execute(
             'DELETE FROM sadhana_entries WHERE user_id = ? AND entry_date = ?',
             [userId, entryDate]

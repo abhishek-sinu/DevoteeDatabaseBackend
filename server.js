@@ -12,17 +12,18 @@
   dotenv.config();
   const app = express();
 
-  
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+
+  app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }));
 
   app.use(express.json());
   app.use("/api", authRoutes);
   app.use("/uploads", express.static("uploads"));
   app.use("/api/sadhana", sadhanaRoutes);
+
 
   // Multer setup
   const storage = multer.diskStorage({
@@ -175,6 +176,73 @@ app.use(cors({
     res.json({ success: true, message: 'Backend deployment successful!' });
   });
 
+
+
+  app.get("/api/counsellor/devotees-sadhana", verifyToken, async (req, res) => {
+    const email = req.query.user_id; // email from frontend
+
+    if (!email) {
+      return res.status(400).json({ error: "Missing user_id (email)" });
+    }
+
+    try {
+      const [[user]] = await db.execute("SELECT id FROM users WHERE email = ?", [email]);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const councellerId = user.id;
+
+      console.log("councellerId:", councellerId);
+
+      const [devotees] = await db.execute(`
+      SELECT d.initiated_name, d.email
+      FROM devotees d
+      WHERE d.counceller_id = ?
+    `, [councellerId]);
+
+      console.log("devotees under this councellor:", devotees);
+
+      res.json(devotees.map(d => ({ devotee: d })));
+    } catch (err) {
+      console.error("Error fetching devotees:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/sadhana/by-email", verifyToken, async (req, res) => {
+    const { email, month, year, page = 1 } = req.query;
+    const pageSize = parseInt(10);
+    const offset = parseInt((parseInt(page) - 1) * pageSize);
+
+    if (!email || !month || !year) {
+      return res.status(400).json({ error: "Missing email, month, or year" });
+    }
+    try {
+      const [[user]] = await db.execute("SELECT id FROM users WHERE email = ?", [email]);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const dateFilter = `${year}-${month}`;
+
+      const [entries] = await db.execute(
+          `SELECT * FROM sadhana_entries
+           WHERE user_id = ? AND DATE_FORMAT(entry_date, '%Y-%m') = ?
+           ORDER BY entry_date DESC
+             LIMIT ${pageSize} OFFSET ${offset}`,
+          [user.id, dateFilter]
+      );
+
+      const [[countResult]] = await db.execute(
+          `SELECT COUNT(*) as count FROM sadhana_entries
+           WHERE user_id = ? AND DATE_FORMAT(entry_date, '%Y-%m') = ?`,
+          [user.id, dateFilter]
+      );
+
+      const totalPages = Math.ceil(countResult.count / pageSize);
+      res.json({ entries, totalPages });
+    } catch (err) {
+      console.error("❌ Error fetching sadhana entries:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
 
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`✅ Backend running on port ${PORT}`));
