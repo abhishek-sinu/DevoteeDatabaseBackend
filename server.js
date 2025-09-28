@@ -55,7 +55,7 @@
         first_name, middle_name, last_name, gender, dob, ethnicity, citizenship, marital_status,
         education_qualification_code, address1, address2, pin_code, email, mobile_no, whatsapp_no,
         initiated_name, spiritual_master_id, first_initiation_date, iskcon_first_contact_date,
-        second_initiated, second_initiation_date, full_time_devotee, temple_name, status
+        second_initiated, second_initiation_date, full_time_devotee, temple_name, status,facilitator_id
       } = req.body;
 
       const photo = req.file ? `/uploads/${req.file.filename}` : null;
@@ -64,7 +64,7 @@
         first_name, middle_name, last_name, gender, dob, ethnicity, citizenship, marital_status,
         education_qualification_code, address1, address2, pin_code, email, mobile_no, whatsapp_no,
         initiated_name, photo, spiritual_master_id, first_initiation_date, iskcon_first_contact_date,
-        second_initiated, second_initiation_date, full_time_devotee, temple_name, status
+        second_initiated, second_initiation_date, full_time_devotee, temple_name, status,facilitator_id
       ].map(v => v === undefined ? null : v);
 
       console.log("📦 Insert Params:", params);
@@ -74,7 +74,7 @@
             first_name, middle_name, last_name, gender, dob, ethnicity, citizenship, marital_status,
             education_qualification_code, address1, address2, pin_code, email, mobile_no, whatsapp_no,
             initiated_name, photo, spiritual_master_id, first_initiation_date, iskcon_first_contact_date,
-            second_initiated, second_initiation_date, full_time_devotee, temple_name, status
+            second_initiated, second_initiation_date, full_time_devotee, temple_name, status, facilitator_id
           ) VALUES (${params.map(() => "?").join(", ")})`,
           params
       );
@@ -94,7 +94,7 @@
         "first_name", "middle_name", "last_name", "gender", "dob", "ethnicity", "citizenship", "marital_status",
         "education_qualification_code", "address1", "address2", "pin_code", "email", "mobile_no", "whatsapp_no",
         "initiated_name", "photo", "spiritual_master_id", "first_initiation_date", "iskcon_first_contact_date",
-        "second_initiated", "second_initiation_date", "full_time_devotee", "temple_name", "status"
+        "second_initiated", "second_initiation_date", "full_time_devotee", "temple_name", "status", "facilitator_id"
       ];
 
       let photo;
@@ -311,6 +311,40 @@
       res.status(500).json({ error: "Failed to fetch user", details: err.message });
     }
   });
+
+
+  app.get("/api/facilitators", verifyToken, async (req, res) => {
+    try {
+      const [rows] = await db.execute(`
+        SELECT d.id AS user_id, d.initiated_name
+        FROM devotees d
+               JOIN users u ON u.email = d.email
+        WHERE u.role = 'counsellor'
+    `);
+      res.json(rows);
+    } catch (err) {
+      console.error("❌ Error fetching counsellors:", err);
+      res.status(500).json({ error: "Failed to fetch counsellors" });
+    }
+  });
+
+  app.get("/api/devotees/:id/initiated-name", verifyToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [[devotee]] = await db.execute(
+          "SELECT initiated_name FROM devotees WHERE id = ?",
+          [id]
+      );
+      if (!devotee) {
+        return res.status(404).json({ error: "Devotee not found" });
+      }
+      res.json({ initiated_name: devotee.initiated_name });
+    } catch (err) {
+      console.error("❌ Error fetching initiated name:", err);
+      res.status(500).json({ error: "Failed to fetch initiated name" });
+    }
+  });
+
 
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`✅ Backend running on port ${PORT}`));
