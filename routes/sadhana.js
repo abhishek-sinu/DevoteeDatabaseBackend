@@ -27,24 +27,31 @@ router.post('/add', async (req, res) => {
     } = req.body;
 
     try {
+        // Check if user exists
         const [userRows] = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
         if (userRows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const userId = userRows[0].id;
+        // Get devotee id by email
+        const [devoteeRows] = await db.execute('SELECT id FROM devotees WHERE email = ?', [email]);
+        if (devoteeRows.length === 0) {
+            return res.status(404).json({ error: 'Devotee not found' });
+        }
+        const devoteeId = devoteeRows[0].id;
+
         const entryDateOnly = entryDate ? entryDate.split('T')[0] : null;
 
         const query = `
-      INSERT INTO sadhana_entries (
-        user_id, entry_date, wake_up_time, chanting_rounds,
-        reading_time, reading_topic, hearing_time, hearing_topic,
-        service_name, service_time
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+            INSERT INTO sadhana_entries (
+                user_id, entry_date, wake_up_time, chanting_rounds,
+                reading_time, reading_topic, hearing_time, hearing_topic,
+                service_name, service_time
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
 
         await db.execute(query, [
-            userId,
+            devoteeId,
             entryDateOnly,
             wakeUpTime,
             chantingRounds,
