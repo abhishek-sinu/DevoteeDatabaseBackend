@@ -73,14 +73,16 @@ router.post('/add', async (req, res) => {
 // 🔹 Read All Entries for a User
 router.get('/entries/:email', async (req, res) => {
     const { email } = req.params;
-
+    console.log("Fetching entries for email:", email);
     try {
-        const [userRows] = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
+        const [userRows] = await db.execute('SELECT id FROM devotees WHERE email = ?', [email]);
         if (userRows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
 
         const userId = userRows[0].id;
+        console.log("Fetching entries for userId:", userId);
+
         const [entries] = await db.execute(
             'SELECT * FROM sadhana_entries WHERE user_id = ? ORDER BY entry_date DESC',
             [userId]

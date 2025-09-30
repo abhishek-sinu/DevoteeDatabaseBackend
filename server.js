@@ -39,9 +39,50 @@
 
   // Get devotees
   app.get("/api/devotees", verifyToken, async (req, res) => {
+    const email = req.query.userId;
+    const type = req.query.type;
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
     try {
-      const [rows] = await db.execute("SELECT * FROM devotees ORDER BY created_at DESC");
-      res.json(rows);
+        if (email === "ALL") {
+            // Return all devotees if email is "ALL"
+            const [rows] = await db.execute("SELECT * FROM devotees ORDER BY created_at DESC");
+            return res.json(rows);
+        }
+      // Get user role
+      const [[user]] = await db.execute("SELECT role FROM users WHERE email = ?", [email]);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      console.log("role",user.role);
+      if (user.role === "user"&& type==="Name") {
+        // Show only own devotee profile
+        const [rows] = await db.execute("SELECT * FROM devotees WHERE email = ?", [email]);
+        return res.json(rows);
+      }
+      else if (user.role === "counsellor"&& type==="Name") {
+          // Show only own devotee profile
+          const [rows] = await db.execute("SELECT * FROM devotees WHERE email = ?", [email]);
+          return res.json(rows);
+      }
+      else if (user.role === "counsellor") {
+        // Get devotee id for this email
+        const [[devotee]] = await db.execute("SELECT id FROM devotees WHERE email = ?", [email]);
+        if (!devotee) return res.status(404).json({ error: "Devotee not found" });
+
+        // Get devotees under this counsellor
+        const [rows] = await db.execute(
+            "SELECT * FROM devotees WHERE facilitator_id = ? ORDER BY created_at DESC",
+            [devotee.id]
+        );
+        return res.json(rows);
+      } else if (user.role === "admin") {
+        // Admin sees all devotees
+        const [rows] = await db.execute("SELECT * FROM devotees ORDER BY created_at DESC");
+        return res.json(rows);
+      } else {
+        // Other roles: restrict as needed
+        return res.status(403).json({ error: "Access denied" });
+      }
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Failed to fetch devotees" });
@@ -193,7 +234,7 @@
 
 
 
-  app.get("/api/counsellor/devotees-sadhana", verifyToken, async (req, res) => {
+  app.get("/api/counsellor/devotees", verifyToken, async (req, res) => {
     const email = req.query.user_id; // email from frontend
 
     if (!email) {
@@ -201,18 +242,18 @@
     }
 
     try {
-      const [[user]] = await db.execute("SELECT id FROM users WHERE email = ?", [email]);
+      const [[user]] = await db.execute("SELECT id FROM devotees WHERE email = ?", [email]);
       if (!user) return res.status(404).json({ error: "User not found" });
 
-      const councellerId = user.id;
+      const facilitatorId = user.id;
 
-      console.log("councellerId:", councellerId);
+      console.log("facilitatorId:", facilitatorId);
 
       const [devotees] = await db.execute(`
-      SELECT d.initiated_name, d.email
+      SELECT d.initiated_name, d.id,d.email
       FROM devotees d
-      WHERE d.counceller_id = ?
-    `, [councellerId]);
+      WHERE d.facilitator_id = ?
+    `, [facilitatorId]);
 
       console.log("devotees under this councellor:", devotees);
 
@@ -224,16 +265,14 @@
   });
 
   app.get("/api/sadhana/by-email", verifyToken, async (req, res) => {
-    const { email, month, year, page = 1 } = req.query;
+    const { id, month, year, page = 1 } = req.query;
     const pageSize = parseInt(10);
     const offset = parseInt((parseInt(page) - 1) * pageSize);
 
-    if (!email || !month || !year) {
-      return res.status(400).json({ error: "Missing email, month, or year" });
+    if (!id || !month || !year) {
+      return res.status(400).json({ error: "Missing id, month, or year" });
     }
     try {
-      const [[user]] = await db.execute("SELECT id FROM users WHERE email = ?", [email]);
-      if (!user) return res.status(404).json({ error: "User not found" });
 
       const dateFilter = `${year}-${month}`;
 
@@ -242,13 +281,13 @@
            WHERE user_id = ? AND DATE_FORMAT(entry_date, '%Y-%m') = ?
            ORDER BY entry_date DESC
              LIMIT ${pageSize} OFFSET ${offset}`,
-          [user.id, dateFilter]
+          [id, dateFilter]
       );
 
       const [[countResult]] = await db.execute(
           `SELECT COUNT(*) as count FROM sadhana_entries
            WHERE user_id = ? AND DATE_FORMAT(entry_date, '%Y-%m') = ?`,
-          [user.id, dateFilter]
+          [id, dateFilter]
       );
 
       const totalPages = Math.ceil(countResult.count / pageSize);
