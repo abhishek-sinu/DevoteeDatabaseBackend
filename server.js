@@ -89,6 +89,28 @@
     }
   });
 
+  // Get devotees
+  app.get("/api/devotee", verifyToken, async (req, res) => {
+    const email = req.query.userId;
+    const type = req.query.type;
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    try {
+      // Get user role
+      const [[user]] = await db.execute("SELECT role FROM users WHERE email = ?", [email]);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      console.log("role:",user.role);
+
+      const [rows] = await db.execute("SELECT * FROM devotees WHERE email = ?", [email]);
+      return res.json(rows);
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to fetch devotees" });
+    }
+  });
+
   // Add devotee
   app.post("/api/devotees", verifyToken, allowAdmin, upload.single("photo"), async (req, res) => {
     try {
@@ -137,8 +159,7 @@
         "initiated_name", "photo", "spiritual_master_id", "first_initiation_date", "iskcon_first_contact_date",
         "second_initiated", "second_initiation_date", "full_time_devotee", "temple_name", "status", "facilitator_id"
       ];
-
-      let photo;
+      let photo = null;
       if (req.file) {
         photo = `/uploads/${req.file.filename}`;
       } else if (req.body.photo) {
