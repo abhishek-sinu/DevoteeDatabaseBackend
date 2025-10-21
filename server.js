@@ -8,10 +8,11 @@
   import authRoutes from "./routes/auth.js";
   import sadhanaRoutes from "./routes/sadhana.js";
   import db from "./db.js";
+  import sadhanaCardUploadRoutes from "./routes/sadhanaCardUpload.js";
+  import publicDevoteeRoutes from "./routes/publicDevotee.js";
 
   dotenv.config();
   const app = express();
-
 
   app.use(cors({
     origin: '*',
@@ -23,7 +24,8 @@
   app.use("/api", authRoutes);
   app.use("/uploads", express.static("uploads"));
   app.use("/api/sadhana", sadhanaRoutes);
-
+  app.use("/api", sadhanaCardUploadRoutes);
+  app.use("/api/devotees", publicDevoteeRoutes);
 
   // Multer setup
   const storage = multer.diskStorage({
@@ -118,7 +120,7 @@
         first_name, middle_name, last_name, gender, dob, ethnicity, citizenship, marital_status,
         education_qualification_code, address1, address2, pin_code, email, mobile_no, whatsapp_no,
         initiated_name, spiritual_master_id, first_initiation_date, iskcon_first_contact_date,
-        second_initiated, second_initiation_date, full_time_devotee, temple_name, status,facilitator_id
+        second_initiated, second_initiation_date, full_time_devotee, temple_name, status, facilitator_id
       } = req.body;
 
       const photo = req.file ? `/uploads/${req.file.filename}` : null;
@@ -127,10 +129,8 @@
         first_name, middle_name, last_name, gender, dob, ethnicity, citizenship, marital_status,
         education_qualification_code, address1, address2, pin_code, email, mobile_no, whatsapp_no,
         initiated_name, photo, spiritual_master_id, first_initiation_date, iskcon_first_contact_date,
-        second_initiated, second_initiation_date, full_time_devotee, temple_name, status,facilitator_id
+        second_initiated, second_initiation_date, full_time_devotee, temple_name, status, facilitator_id
       ].map(v => v === undefined ? null : v);
-
-      console.log("📦 Insert Params:", params);
 
       const [result] = await db.execute(
           `INSERT INTO devotees (
@@ -141,6 +141,18 @@
           ) VALUES (${params.map(() => "?").join(", ")})`,
           params
       );
+
+      // Insert into users table
+      if (email) {
+        const bcrypt = await import('bcrypt');
+        const defaultPassword = "Hari@108";
+        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+        await db.execute(
+            "INSERT IGNORE INTO users (email, password, role) VALUES (?, ?, ?)",
+            [email, hashedPassword, "user"]
+        );
+      }
 
       res.status(201).json({ id: result.insertId });
     } catch (err) {
@@ -208,7 +220,7 @@
         "first_name", "middle_name", "last_name", "gender", "dob", "ethnicity", "citizenship", "marital_status",
         "education_qualification_code", "address1", "address2", "pin_code", "email", "mobile_no", "whatsapp_no",
         "initiated_name", "photo", "spiritual_master_id", "first_initiation_date", "iskcon_first_contact_date",
-        "second_initiated", "second_initiation_date", "full_time_devotee", "temple_name", "status"
+        "second_initiated", "second_initiation_date", "full_time_devotee", "temple_name", "status", "facilitator_id"
       ];
 
       const values = devotees.map(d => fields.map(field => d[field] ?? null));
