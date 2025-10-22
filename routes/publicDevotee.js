@@ -8,8 +8,8 @@ import ExcelJS from 'exceljs';
 dotenv.config();
 const router = express.Router();
 
-const PUBLIC_PHOTO_DIR = path.join(process.cwd(), 'public', 'devotee-photos');
-const PUBLIC_XLS_PATH = path.join(process.cwd(), 'public', 'devotees.xlsx');
+const PUBLIC_PHOTO_DIR = path.resolve(__dirname, '../public/devotee-photos');
+const PUBLIC_XLS_PATH = path.resolve(__dirname, '../public/devotees.xlsx');
 if (!fs.existsSync(PUBLIC_PHOTO_DIR)) {
   fs.mkdirSync(PUBLIC_PHOTO_DIR, { recursive: true });
   console.log('[publicDevotee] Created photo directory:', PUBLIC_PHOTO_DIR);
