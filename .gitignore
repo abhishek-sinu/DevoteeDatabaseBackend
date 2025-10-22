@@ -38,7 +38,7 @@ coverage/
 .nuxt/
 
 # Gatsby files
-public/
+public-enty/
 
 # Vuepress build output
 .vuepress/dist

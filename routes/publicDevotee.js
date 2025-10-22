@@ -65,7 +65,7 @@ router.post('/public', upload.single('photo'), async (req, res) => {
     const data = req.body;
     console.log('[publicDevotee] Received data:', data);
     if (req.file) {
-      data.photo_path = `/public/devotee-photos/${req.file.filename}`;
+      data.photo_path = `/public-entry/devotee-photos/${req.file.filename}`;
       console.log('[publicDevotee] Photo uploaded:', data.photo_path);
     } else {
       data.photo_path = '';
