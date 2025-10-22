@@ -38,10 +38,10 @@ async function appendToXLS(data) {
   if (fs.existsSync(PUBLIC_XLS_PATH)) {
     console.log('[publicDevotee] XLS exists, loading:', PUBLIC_XLS_PATH);
     workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(PUBLIC_XLS_PATH);
+    await workbook.xlsx.readFile(path.join(__dirname, '../uploads/public-data/public-devotees.xlsx'));
     worksheet = workbook.getWorksheet(1);
   } else {
-    console.log('[publicDevotee] XLS does not exist, creating new:', PUBLIC_XLS_PATH);
+    console.log('[publicDevotee] XLS does not exist, creating new:', path.join(__dirname, '../uploads/public-data/public-devotees.xlsx'));
     workbook = new ExcelJS.Workbook();
     worksheet = workbook.addWorksheet('Devotees');
     worksheet.addRow([
