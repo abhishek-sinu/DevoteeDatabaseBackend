@@ -176,4 +176,68 @@ router.delete('/delete', async (req, res) => {
     }
 });
 
+// 🔹 Update entry by ID (used by frontend: PUT /api/sadhana/entries/:id)
+router.put('/entries/:id', async (req, res) => {
+    const { id } = req.params;
+    const {
+        entry_date,
+        wake_up_time,
+        chanting_rounds,
+        reading_time,
+        reading_topic,
+        hearing_time,
+        hearing_topic,
+        service_name,
+        service_time
+    } = req.body;
+
+    try {
+        const query = `
+            UPDATE sadhana_entries SET
+                entry_date = ?, wake_up_time = ?, chanting_rounds = ?, reading_time = ?, reading_topic = ?,
+                hearing_time = ?, hearing_topic = ?, service_name = ?, service_time = ?
+            WHERE id = ?
+        `;
+
+        const [result] = await db.execute(query, [
+            entry_date,
+            wake_up_time,
+            chanting_rounds,
+            reading_time,
+            reading_topic,
+            hearing_time,
+            hearing_topic,
+            service_name,
+            service_time,
+            id
+        ]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Entry not found' });
+        }
+
+        // return the updated row
+        const [rows] = await db.execute('SELECT * FROM sadhana_entries WHERE id = ?', [id]);
+        res.status(200).json(rows[0]);
+    } catch (error) {
+        console.error('❌ Error updating entry by id:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+});
+
+// 🔹 Delete entry by ID (used by frontend: DELETE /api/sadhana/entries/:id)
+router.delete('/entries/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [result] = await db.execute('DELETE FROM sadhana_entries WHERE id = ?', [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Entry not found' });
+        }
+        res.status(200).json({ message: 'Sadhana entry deleted successfully' });
+    } catch (error) {
+        console.error('❌ Error deleting entry by id:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+});
+
 export default router;
