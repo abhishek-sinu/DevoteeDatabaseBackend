@@ -10,6 +10,7 @@
   import db from "./db.js";
   import sadhanaCardUploadRoutes from "./routes/sadhanaCardUpload.js";
   import publicDevoteeRoutes from "./routes/publicDevotee.js";
+  import notificationRoutes from "./routes/Notification.js";
 
   dotenv.config();
   const app = express();
@@ -21,11 +22,13 @@
   }));
 
   app.use(express.json());
+
   app.use("/api", authRoutes);
   app.use("/uploads", express.static("uploads"));
   app.use("/api/sadhana", sadhanaRoutes);
   app.use("/api", sadhanaCardUploadRoutes);
   app.use("/api/devotees", publicDevoteeRoutes);
+  app.use("/api/notifications", notificationRoutes);
 
   // Multer setup
   const storage = multer.diskStorage({
