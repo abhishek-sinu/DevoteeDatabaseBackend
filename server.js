@@ -1,5 +1,350 @@
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: Health check
+ *     tags: [Server]
+ *     responses:
+ *       200:
+ *         description: Server is healthy
+ */
+/**
+ * @swagger
+ * /api/devotees:
+ *   get:
+ *     summary: Get devotees (role-based)
+ *     tags: [Devotees]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User email or 'ALL'
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Type filter
+ *     responses:
+ *       200:
+ *         description: List of devotees
+ *       400:
+ *         description: Email is required
+ *       500:
+ *         description: Failed to fetch devotees
+ */
+/**
+ * @swagger
+ * /api/devotee:
+ *   get:
+ *     summary: Get a single devotee by email
+ *     tags: [Devotees]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User email
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Type filter
+ *     responses:
+ *       200:
+ *         description: Devotee info
+ *       400:
+ *         description: Email is required
+ *       500:
+ *         description: Failed to fetch devotees
+ */
+/**
+ * @swagger
+ * /api/devotees:
+ *   post:
+ *     summary: Add a devotee
+ *     tags: [Devotees]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *               # ... other fields ...
+ *     responses:
+ *       201:
+ *         description: Devotee created
+ *       500:
+ *         description: Failed to create devotee
+ */
+/**
+ * @swagger
+ * /api/devotees/{id}:
+ *   put:
+ *     summary: Update a devotee
+ *     tags: [Devotees]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Devotee ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *               # ... other fields ...
+ *     responses:
+ *       200:
+ *         description: Devotee updated
+ *       500:
+ *         description: Failed to update devotee
+ */
+/**
+ * @swagger
+ * /api/devotees/{id}:
+ *   delete:
+ *     summary: Delete a devotee
+ *     tags: [Devotees]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Devotee ID
+ *     responses:
+ *       200:
+ *         description: Devotee deleted
+ *       500:
+ *         description: Failed to delete devotee
+ */
+/**
+ * @swagger
+ * /api/devotees/bulk:
+ *   post:
+ *     summary: Bulk upload devotees
+ *     tags: [Devotees]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               devotees:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       201:
+ *         description: Bulk upload successful
+ *       400:
+ *         description: Invalid data format
+ *       500:
+ *         description: Bulk upload failed
+ */
+/**
+ * @swagger
+ * /api/sadhana/date/{userId}/{date}:
+ *   get:
+ *     summary: Get sadhana entry by user and date
+ *     tags: [Sadhana]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: User ID
+ *       - in: path
+ *         name: date
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Date (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Sadhana entry
+ */
+/**
+ * @swagger
+ * /api/deployment-test:
+ *   get:
+ *     summary: Deployment test
+ *     tags: [Server]
+ *     responses:
+ *       200:
+ *         description: Backend deployment successful
+ */
+/**
+ * @swagger
+ * /api/counsellor/devotees:
+ *   get:
+ *     summary: Get devotees under a counsellor
+ *     tags: [Devotees]
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Counsellor's email
+ *     responses:
+ *       200:
+ *         description: List of devotees
+ *       400:
+ *         description: Missing user_id (email)
+ *       500:
+ *         description: Internal server error
+ */
+/**
+ * @swagger
+ * /api/sadhana/by-email:
+ *   get:
+ *     summary: Get sadhana entries by user id, month, year, page
+ *     tags: [Sadhana]
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: User ID
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Month (MM)
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Year (YYYY)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Sadhana entries and total pages
+ *       400:
+ *         description: Missing id, month, or year
+ *       500:
+ *         description: Internal server error
+ */
+/**
+ * @swagger
+ * /api/users/assign-role:
+ *   put:
+ *     summary: Assign user role
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin, counsellor]
+ *     responses:
+ *       200:
+ *         description: Role updated
+ *       400:
+ *         description: Email and role are required
+ *       500:
+ *         description: Failed to update role
+ */
+/**
+ * @swagger
+ * /api/users/by-email:
+ *   get:
+ *     summary: Get user by email
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User email
+ *     responses:
+ *       200:
+ *         description: User info
+ *       400:
+ *         description: Email is required
+ *       500:
+ *         description: Failed to fetch user
+ */
+/**
+ * @swagger
+ * /api/facilitators:
+ *   get:
+ *     summary: Get all facilitators (counsellors)
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: List of facilitators
+ *       500:
+ *         description: Failed to fetch counsellors
+ */
+/**
+ * @swagger
+ * /api/devotees/{id}/initiated-name:
+ *   get:
+ *     summary: Get initiated name by devotee id
+ *     tags: [Devotees]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Devotee ID
+ *     responses:
+ *       200:
+ *         description: Initiated name
+ *       404:
+ *         description: Devotee not found
+ *       500:
+ *         description: Failed to fetch initiated name
+ */
+// ...existing code...
+// Swagger setup (must be after app is initialized)
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
   import express from "express";
-  import mysql from "mysql2/promise";
   import cors from "cors";
   import dotenv from "dotenv";
   import multer from "multer";
@@ -11,9 +356,29 @@
   import sadhanaCardUploadRoutes from "./routes/sadhanaCardUpload.js";
   import publicDevoteeRoutes from "./routes/publicDevotee.js";
   import notificationRoutes from "./routes/Notification.js";
+  import facilitatorRoutes from "./routes/facilitator.js";
 
   dotenv.config();
   const app = express();
+
+  
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Devotee Database API',
+      version: '1.0.0',
+      description: 'API documentation for Devotee Database Backend',
+    },
+    servers: [
+      { url: 'http://localhost:' + (process.env.PORT || 5000) }
+    ],
+  },
+  apis: ['./routes/*.js', './server.js'], // Path to the API docs (include server.js)
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   app.use(cors({
     origin: '*',
@@ -29,6 +394,8 @@
   app.use("/api", sadhanaCardUploadRoutes);
   app.use("/api/devotees", publicDevoteeRoutes);
   app.use("/api/notifications", notificationRoutes);
+
+  app.use("/api/facilitator", facilitatorRoutes);
 
   // Multer setup
   const storage = multer.diskStorage({

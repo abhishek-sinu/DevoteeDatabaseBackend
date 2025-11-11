@@ -1,3 +1,55 @@
+
+/**
+ * @swagger
+ * /sadhana/add:
+ *   post:
+ *     summary: Create a Sadhana entry
+ *     tags: [Sadhana]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               entryDate:
+ *                 type: string
+ *                 format: date
+ *               wakeUpTime:
+ *                 type: string
+ *               chantingRounds:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Sadhana entry added successfully
+ *       404:
+ *         description: User or Devotee not found
+ *       500:
+ *         description: Database error
+ */
+/**
+ * @swagger
+ * /sadhana/entries/{email}:
+ *   get:
+ *     summary: Get all Sadhana entries for a user
+ *     tags: [Sadhana]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User's email
+ *     responses:
+ *       200:
+ *         description: List of Sadhana entries
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Database error
+ */
 import express from 'express';
 import db from '../db.js';
 import dotenv from 'dotenv';
@@ -239,5 +291,61 @@ router.delete('/entries/:id', async (req, res) => {
         res.status(500).json({ error: 'Database error', details: error.message });
     }
 });
+
+/**
+ * @swagger
+ * /sadhana/entries-by-month:
+ *   get:
+ *     summary: Get all sadhana entries for a user for a given month and year
+ *     tags: [Sadhana]
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: User ID
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Month (MM)
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Year (YYYY)
+ *     responses:
+ *       200:
+ *         description: List of sadhana entries for the month
+ *       400:
+ *         description: Missing required params
+ *       500:
+ *         description: Server error
+ */
+router.get('/entries-by-month', async (req, res) => {
+    const { user_id, month, year } = req.query;
+    console.log(`[Sadhana][entries-by-month] Params: user_id=${user_id}, month=${month}, year=${year}`);
+    if (!user_id || !month || !year) {
+        console.warn('[Sadhana][entries-by-month] Missing required params');
+        return res.status(400).json({ message: 'user_id, month, and year are required as query params.' });
+    }
+    try {
+        const dateFilter = `${year}-${month}`;
+        const [entries] = await db.execute(
+            `SELECT * FROM sadhana_entries WHERE user_id = ? AND DATE_FORMAT(entry_date, '%Y-%m') = ? ORDER BY entry_date`,
+            [user_id, dateFilter]
+        );
+        console.log(`[Sadhana][entries-by-month] Found ${entries.length} entries for user_id ${user_id} in ${dateFilter}`);
+        res.json(entries);
+    } catch (err) {
+        console.error('[Sadhana][entries-by-month] Error:', err);
+        res.status(500).json({ message: 'Failed to fetch sadhana entries.' });
+    }
+});
+
+
 
 export default router;

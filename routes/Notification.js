@@ -1,3 +1,105 @@
+/**
+ * @swagger
+ * /notifications/send:
+ *   post:
+ *     summary: Send a notification to a devotee
+ *     tags: [Notifications]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - to
+ *               - message
+ *               - sent_by
+ *             properties:
+ *               to:
+ *                 type: string
+ *                 description: Recipient devotee's email
+ *               message:
+ *                 type: string
+ *               sent_by:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Notification sent
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Server error
+ */
+/**
+ * @swagger
+ * /notifications/view:
+ *   get:
+ *     summary: Get notifications for a devotee by email
+ *     tags: [Notifications]
+ *     parameters:
+ *       - in: query
+ *         name: devotee_email
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Devotee's email
+ *     responses:
+ *       200:
+ *         description: List of notifications
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   message:
+ *                     type: string
+ *                   sent_by:
+ *                     type: string
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *                   status:
+ *                     type: string
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Server error
+ */
+/**
+ * @swagger
+ * /notifications/status:
+ *   put:
+ *     summary: Update notification status (read/unread)
+ *     tags: [Notifications]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *               - status
+ *             properties:
+ *               id:
+ *                 type: integer
+ *               status:
+ *                 type: string
+ *                 enum: [read, unread]
+ *     responses:
+ *       200:
+ *         description: Notification status updated
+ *       400:
+ *         description: Bad request
+ *       404:
+ *         description: Notification not found
+ *       500:
+ *         description: Server error
+ */
 import express from 'express';
 import pool from '../db.js';
 

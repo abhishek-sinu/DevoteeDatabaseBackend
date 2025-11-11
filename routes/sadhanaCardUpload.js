@@ -1,3 +1,87 @@
+/**
+ * @swagger
+ * /sadhanaCardUpload/sadhana-card:
+ *   get:
+ *     summary: Get sadhana card file info
+ *     tags: [SadhanaCardUpload]
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User's email
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Month
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Year
+ *     responses:
+ *       200:
+ *         description: File path returned
+ *       400:
+ *         description: Missing params
+ *       404:
+ *         description: No sadhana card found
+ *       500:
+ *         description: Failed to fetch sadhana card
+ */
+/**
+ * @swagger
+ * /sadhanaCardUpload/upload-sadhana-card:
+ *   post:
+ *     summary: Upload a sadhana card file
+ *     tags: [SadhanaCardUpload]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               month:
+ *                 type: string
+ *               year:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Sadhana card uploaded successfully
+ *       400:
+ *         description: All fields are required
+ *       500:
+ *         description: Upload failed
+ */
+/**
+ * @swagger
+ * /sadhanaCardUpload/devotees/search:
+ *   get:
+ *     summary: Search devotees by name or email
+ *     tags: [SadhanaCardUpload]
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Search query (min 2 chars)
+ *     responses:
+ *       200:
+ *         description: List of devotees
+ *       500:
+ *         description: Server error
+ */
 import express from "express";
 import multer from "multer";
 import path from "path";

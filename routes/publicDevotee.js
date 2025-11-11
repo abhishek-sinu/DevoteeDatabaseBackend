@@ -1,3 +1,38 @@
+/**
+ * @swagger
+ * /publicDevotee/public:
+ *   post:
+ *     summary: Add a public devotee entry
+ *     tags: [PublicDevotee]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               middle_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *               email:
+ *                 type: string
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Entry submitted successfully
+ *       500:
+ *         description: Failed to submit entry
+ */
 import express from 'express';
 import dotenv from 'dotenv';
 import multer from 'multer';
