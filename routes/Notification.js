@@ -108,19 +108,38 @@ const router = express.Router();
 // Send notification: expects email, message, sent_by
 // Send notification: expects to, message, sent_by
 router.post('/send', async (req, res) => {
-	const { to, message, sent_by } = req.body;
-	console.log(`[Notification][SEND] Payload:`, { to, message, sent_by });
+	const { to, message, sent_by, facilitator_id } = req.body;
+	console.log(`[Notification][SEND] Payload:`, { to, message, sent_by, facilitator_id });
 	if (!to || !message || !sent_by) {
 		console.warn('[Notification][SEND] Missing required fields:', { to, message, sent_by });
 		return res.status(400).json({ message: 'email, message, and sent_by are required.' });
 	}
 	try {
-		const [result] = await pool.query(
-			'INSERT INTO notifications (devotee_email, message, sent_by, status) VALUES (?, ?, ?, ?)',
-			[to, message, sent_by, 'unread']
-		);
-		console.log(`[Notification][SEND] Notification inserted with id: ${result.insertId}`);
-		res.status(201).json({ message: 'Notification sent.', notification_id: result.insertId });
+		if (to === 'ALL' && facilitator_id) {
+			// Fetch all devotees assigned to this facilitator
+			const [devotees] = await pool.query(
+				'SELECT email FROM devotees WHERE facilitator_id = ?',
+				[facilitator_id]
+			);
+			if (!devotees.length) {
+				console.warn(`[Notification][SEND] No devotees found for facilitator_id: ${facilitator_id}`);
+				return res.status(404).json({ message: 'No devotees found for this facilitator.' });
+			}
+			// Insert notification for each devotee
+			const values = devotees.map(d => [d.email, message, sent_by, 'unread']);
+			await pool.query(
+				'INSERT INTO notifications (devotee_email, message, sent_by, status) VALUES ?',[values]
+			);
+			console.log(`[Notification][SEND] Notifications sent to ${devotees.length} devotees for facilitator_id ${facilitator_id}`);
+			return res.status(201).json({ message: `Notifications sent to ${devotees.length} devotees.` });
+		} else {
+			const [result] = await pool.query(
+				'INSERT INTO notifications (devotee_email, message, sent_by, status) VALUES (?, ?, ?, ?)',
+				[to, message, sent_by, 'unread']
+			);
+			console.log(`[Notification][SEND] Notification inserted with id: ${result.insertId}`);
+			return res.status(201).json({ message: 'Notification sent.', notification_id: result.insertId });
+		}
 	} catch (err) {
 		console.error('[Notification][SEND] Error:', err);
 		res.status(500).json({ message: 'Failed to send notification.' });
