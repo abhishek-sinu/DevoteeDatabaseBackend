@@ -1,5 +1,31 @@
 /**
  * @swagger
+ * /api/download/devotees-xlsx:
+ *   get:
+ *     summary: Download devotees.xlsx file (admin only)
+ *     description: Requires a valid admin JWT. Use the Authorize button with a token from /api/login.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: devotees.xlsx file download
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Invalid or expired token
+ *       403:
+ *         description: No token provided or user not admin
+ *       404:
+ *         description: File not found
+ *       500:
+ *         description: Failed to download file
+ */
+/**
+ * @swagger
  * /api/health:
  *   get:
  *     summary: Health check
@@ -344,6 +370,7 @@
 // Swagger setup (must be after app is initialized)
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
+import fs from 'fs';
   import express from "express";
   import cors from "cors";
   import dotenv from "dotenv";
@@ -373,6 +400,16 @@ const swaggerOptions = {
     servers: [
       { url: 'http://localhost:' + (process.env.PORT || 5000) }
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }],
   },
   apis: ['./routes/*.js', './server.js'], // Path to the API docs (include server.js)
 };
@@ -786,6 +823,26 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
       res.status(500).json({ error: "Failed to fetch initiated name" });
     }
   });
+
+// API: Download devotees.xlsx (admin only)
+app.get("/api/download/devotees-xlsx", verifyToken, allowAdmin, (req, res) => {
+  const filePath = path.resolve("public/devotees.xlsx");
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "File not found" });
+  }
+  // Set correct MIME type for Excel
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=devotees.xlsx');
+  res.download(filePath, "devotees.xlsx", (err) => {
+    if (err) {
+      console.error("Error sending devotees.xlsx:", err);
+      // Don't send another response if headers are already sent
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to download file" });
+      }
+    }
+  });
+});
 
 
   const PORT = process.env.PORT || 5000;
