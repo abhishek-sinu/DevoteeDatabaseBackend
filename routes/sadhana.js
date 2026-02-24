@@ -1,3 +1,4 @@
+
 /**
  * @swagger
  * /sadhana/add:
@@ -62,20 +63,78 @@ const toMinutes = (value, unit) => {
     return unit === 'hours' ? num * 60 : num;
 };
 
+// 🔹 Get all predefined sadhana templates
+router.get('/predefined-templates', async (req, res) => {
+    console.log('[PredefinedTemplates][GET] Incoming query params:', req.query);
+    const { sadhana_template } = req.query;
+    try {
+        let rows;
+        if (sadhana_template) {
+            [rows] = await db.execute('SELECT * FROM predefined_template WHERE sadhana_template = ?', [sadhana_template]);
+        } else {
+            [rows] = await db.execute('SELECT * FROM predefined_template');
+        }
+        // Convert numeric fields to booleans for template fields
+        const templates = rows.map(row => ({
+            id: row.id,
+            sadhanaTemplate: row.sadhana_template,
+            entry_date: !!row.entry_date,
+            wake_up_time: !!row.wake_up_time,
+            chanting_rounds: !!row.chanting_rounds,
+            reading_time: !!row.reading_time,
+            reading_topic: !!row.reading_topic,
+            hearing_time: !!row.hearing_time,
+            hearing_topic: !!row.hearing_topic,
+            service_name: !!row.service_name,
+            service_time: !!row.service_time,
+            sleeping_time: !!row.sleeping_time,
+            chanting_before_700: !!row.chanting_before_700,
+            chanting_before_730: !!row.chanting_before_730,
+            attended_mangal_arati: !!row.attended_mangal_arati,
+            attended_bhagavatam_class: !!row.attended_bhagavatam_class,
+            book_distribution: !!row.book_distribution,
+            prasadam_honored: !!row.prasadam_honored,
+            ekadashi_followed: !!row.ekadashi_followed,
+            japa_quality: !!row.japa_quality,
+            created_at: row.created_at,
+            updated_at: row.updated_at
+        }));
+        console.log('[PredefinedTemplates][GET] Returning:', templates);
+        res.status(200).json(templates);
+    } catch (error) {
+        console.error('❌ Error fetching predefined templates:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+});
+
 // 🔹 Create Sadhana Entry
 router.post('/add', async (req, res) => {
-    const {
-        email,
-        entryDate,
-        wakeUpTime,
-        chantingRounds,
-        readingTime,
-        readingTopic,
-        hearingTime,
-        hearingTopic,
-        serviceName,
-        serviceTime
-    } = req.body;
+    console.log('Received parameters:', req.body); // Log all incoming parameters
+
+const {
+    email,
+    entryDate,
+    wakeUpTime,
+    chantingRounds,
+    readingTime,
+    readingTopic,
+    hearingTime,
+    hearingTopic,
+    serviceName,
+    serviceTime,
+    sleepingTime,
+    chantingBefore700Time,
+    chantingBefore730Time,
+    attendedMangalAratiTime,
+    attendedBhagavatamClass,
+    bookDistribution,
+    prasadamHonored,
+    ekadashiFollowed,
+    japaQuality
+} = req.body;
+
+    // Helper to convert undefined to null
+    const safe = val => typeof val === 'undefined' ? null : val;
 
     try {
         // Check if user exists
@@ -97,22 +156,35 @@ router.post('/add', async (req, res) => {
             INSERT INTO sadhana_entries (
                 user_id, entry_date, wake_up_time, chanting_rounds,
                 reading_time, reading_topic, hearing_time, hearing_topic,
-                service_name, service_time
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                service_name, service_time, sleeping_time,
+                chanting_before_700, chanting_before_730,
+                attended_mangal_arati, attended_bhagavatam_class,
+                book_distribution, prasadam_honored,
+                ekadashi_followed, japa_quality
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         await db.execute(query, [
-            devoteeId,
-            entryDateOnly,
-            wakeUpTime,
-            chantingRounds,
-            readingTime,
-            readingTopic,
-            hearingTime,
-            hearingTopic,
-            serviceName,
-            serviceTime
-        ]);
+    devoteeId,
+    entryDateOnly,
+    safe(wakeUpTime),
+    safe(chantingRounds),
+    safe(readingTime),
+    safe(readingTopic),
+    safe(hearingTime),
+    safe(hearingTopic),
+    safe(serviceName),
+    safe(serviceTime),
+    safe(sleepingTime),
+    safe(chantingBefore700Time),   // maps to chanting_before_700
+    safe(chantingBefore730Time),   // maps to chanting_before_730
+    safe(attendedMangalAratiTime), // maps to attended_mangal_arati
+    safe(attendedBhagavatamClass),
+    safe(bookDistribution),
+    safe(prasadamHonored),
+    safe(ekadashiFollowed),
+    safe(japaQuality)
+]);
 
         res.status(201).json({ message: 'Sadhana entry added successfully' });
     } catch (error) {
@@ -351,13 +423,18 @@ router.get('/entries-by-month', async (req, res) => {
 
 // 🔹 Sadhana Template Management
 // GET /api/sadhana/template/:email
-router.get('/template/:email', async (req, res) => {
-    const { email } = req.params;
+router.get('/template/:id', async (req, res) => {
+    const { id } = req.params;
     console.log('[Sadhana][Template GET] req.params:', req.params);
     try {
-        const [rows] = await db.execute(
-            'SELECT * FROM sadhana_user_template WHERE user_email = ?', [email]
+        let rows;
+        [rows] = await db.execute(
+            'SELECT * FROM sadhana_user_template WHERE devotee_id = ?', [id]
         );
+        if(rows.length === 0) {
+        [rows] = await db.execute(
+            'SELECT * FROM sadhana_user_template WHERE user_email = ?', [id]
+        );}
         if (rows.length === 0) {
             // Default template: core fields true, optional fields false
             const defaultTemplate = {
@@ -380,11 +457,12 @@ router.get('/template/:email', async (req, res) => {
                 ekadashi_followed: false,
                 japa_quality: false
             };
+            console.log('[Sadhana][Template GET] Sending default response:', defaultTemplate);
             return res.status(200).json(defaultTemplate);
         }
         // Return all boolean fields
         const template = rows[0];
-        return res.status(200).json({
+        const response = {
             entry_date: !!template.entry_date,
             wake_up_time: !!template.wake_up_time,
             chanting_rounds: !!template.chanting_rounds,
@@ -403,7 +481,9 @@ router.get('/template/:email', async (req, res) => {
             prasadam_honored: !!template.prasadam_honored,
             ekadashi_followed: !!template.ekadashi_followed,
             japa_quality: !!template.japa_quality
-        });
+        };
+        console.log('[Sadhana][Template GET] Sending response:', response);
+        return res.status(200).json(response);
     } catch (error) {
         console.error('❌ Error fetching sadhana template:', error);
         res.status(500).json({ error: 'Database error', details: error.message });

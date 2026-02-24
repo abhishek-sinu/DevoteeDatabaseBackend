@@ -448,6 +448,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   // Get devotees
   app.get("/api/devotees", verifyToken, async (req, res) => {
+    console.log("Fetching devotees with query:", req.query);
     const email = req.query.userId;
     const type = req.query.type;
     if (!email) {
