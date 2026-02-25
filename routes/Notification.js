@@ -156,7 +156,7 @@ router.get('/view', async (req, res) => {
 	}
 	try {
 		const [rows] = await pool.query(
-			'SELECT id, message, sent_by, created_at, status FROM notifications WHERE devotee_email = ? ORDER BY created_at DESC',
+			'SELECT id, message, status FROM notifications WHERE devotee_email = ? ORDER BY created_at ASC',
 			[devotee_email]
 		);
 		console.log(`[Notification][VIEW] Returned ${rows.length} notifications for ${devotee_email}`);

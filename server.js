@@ -366,11 +366,16 @@
  *       500:
  *         description: Failed to fetch initiated name
  */
+// --- Signup OTP APIs ---
+// Use emailjs for backend email sending (node version, not emailjs-com)
+
+
 // ...existing code...
 // Swagger setup (must be after app is initialized)
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import fs from 'fs';
+import nodemailer from 'nodemailer';
   import express from "express";
   import cors from "cors";
   import dotenv from "dotenv";
@@ -440,6 +445,101 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
     filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
   });
   const upload = multer({ storage });
+
+  // Send OTP to email using emailjs (node)
+  app.post('/api/send-otp', async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    try {
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiry
+
+      // Save OTP to DB
+      await db.execute(
+        'INSERT INTO email_otps (email, otp, expires_at, verified) VALUES (?, ?, ?, FALSE)',
+        [email, otp, expiresAt]
+      );
+
+      // Send OTP to email using emailjs (node)
+      // You must install emailjs: npm install emailjs
+      // Hardcoded credentials from sample (replace with your actual values)
+
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: 'vaidhisadhanabhakti@gmail.com',
+          pass: 'zfplndicqjszxjag', // Updated to new app password
+        },
+      });
+
+      await transporter.sendMail({
+        from: 'vaidhisadhanabhakti@gmail.com',
+        to: email,
+        subject: 'Your Signup OTP',
+        text: `Your OTP for signup is: ${otp}`,
+      });
+
+      res.json({ message: 'OTP sent to email' });
+    } catch (err) {
+      console.error('Error sending OTP:', err);
+      res.status(500).json({ error: 'Failed to send OTP', details: err.message });
+    }
+  });
+// Verify OTP
+app.post('/api/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
+  try {
+    const [rows] = await db.execute(
+      'SELECT * FROM email_otps WHERE email = ? AND otp = ? AND expires_at > NOW() AND verified = FALSE ORDER BY created_at DESC LIMIT 1',
+      [email, otp]
+    );
+    if (!rows.length) return res.status(400).json({ error: 'Invalid or expired OTP' });
+    await db.execute('UPDATE email_otps SET verified = TRUE WHERE id = ?', [rows[0].id]);
+    res.json({ message: 'OTP verified' });
+  } catch (err) {
+    console.error('Error verifying OTP:', err);
+    res.status(500).json({ error: 'Failed to verify OTP', details: err.message });
+  }
+});
+// Signup API (after OTP verified)
+app.post('/api/signup', async (req, res) => {
+  const { email, name, initiated_name, mobile, password } = req.body;
+  if (!email || !name || !mobile || !password)
+    return res.status(400).json({ error: 'Missing required fields' });
+  try {
+    // Check OTP verified
+    const [otpRows] = await db.execute(
+      'SELECT * FROM email_otps WHERE email = ? AND verified = TRUE ORDER BY created_at DESC LIMIT 1',
+      [email]
+    );
+    if (!otpRows.length) return res.status(400).json({ error: 'OTP not verified' });
+
+    // Hash password
+    const bcrypt = await import('bcrypt');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert into devotees table (minimal fields for signup)
+    const [devoteeResult] = await db.execute(
+      'INSERT INTO devotees (first_name, email, initiated_name, mobile_no, status) VALUES (?, ?, ?, ?, ?)',
+      [name, email, initiated_name || null, mobile, 'active']
+    );
+
+    // Insert into users table
+    await db.execute(
+      'INSERT INTO users (email, password, role) VALUES (?, ?, ?)',
+      [email, hashedPassword, 'user']
+    );
+
+    res.status(201).json({ message: 'Signup successful', devotee_id: devoteeResult.insertId });
+  } catch (err) {
+    console.error('Error in signup:', err);
+    res.status(500).json({ error: 'Signup failed', details: err.message });
+  }
+});
 
 
 
