@@ -389,6 +389,8 @@ import nodemailer from 'nodemailer';
   import publicDevoteeRoutes from "./routes/publicDevotee.js";
   import notificationRoutes from "./routes/Notification.js";
   import facilitatorRoutes from "./routes/facilitator.js";
+  import cashfreeRoutes from  "./routes/cashfree.js";
+
 
   dotenv.config();
   const app = express();
@@ -436,8 +438,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use("/api", sadhanaCardUploadRoutes);
   app.use("/api/devotees", publicDevoteeRoutes);
   app.use("/api/notifications", notificationRoutes);
-
   app.use("/api/facilitator", facilitatorRoutes);
+  app.use("/api", cashfreeRoutes);
+
 
   // Multer setup
   const storage = multer.diskStorage({
@@ -445,6 +448,28 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
     filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
   });
   const upload = multer({ storage });
+
+
+  // Get premium expiry date by email
+app.get('/api/users/premium-expiry', async (req, res) => {
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  try {
+    const [rows] = await db.execute(
+      'SELECT premium_expiry_date, user_type FROM users WHERE email = ?',
+      [email]
+      );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ email, premium_expiry_date: rows[0].premium_expiry_date, user_type: rows[0].user_type });
+  } catch (err) {
+    console.error('Error fetching premium expiry date:', err);
+    res.status(500).json({ error: 'Failed to fetch premium expiry date', details: err.message });
+  }
+});
 
   // Send OTP to email using emailjs (node)
   app.post('/api/send-otp', async (req, res) => {
@@ -528,10 +553,13 @@ app.post('/api/signup', async (req, res) => {
       [name, email, initiated_name || null, mobile, 'active']
     );
 
-    // Insert into users table
+
+    // Calculate premium_expiry_date (30 days from now)
+    const premiumExpiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    // Insert into users table with premium_expiry_date
     await db.execute(
-      'INSERT INTO users (email, password, role) VALUES (?, ?, ?)',
-      [email, hashedPassword, 'user']
+    'INSERT INTO users (email, password, role, premium_expiry_date, user_type) VALUES (?, ?, ?, ?, ?)',
+    [email, hashedPassword, 'user', premiumExpiryDate, 'trial']
     );
 
     res.status(201).json({ message: 'Signup successful', devotee_id: devoteeResult.insertId });
@@ -657,8 +685,8 @@ app.post('/api/signup', async (req, res) => {
         const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
         await db.execute(
-            "INSERT IGNORE INTO users (email, password, role) VALUES (?, ?, ?)",
-            [email, hashedPassword, "user"]
+        "INSERT IGNORE INTO users (email, password, role, user_type) VALUES (?, ?, ?, ?)",
+        [email, hashedPassword, "user", "trial"]
         );
       }
 
@@ -747,8 +775,8 @@ app.post('/api/signup', async (req, res) => {
       const userInsertPromises = devotees.map(devotee => {
         if (!devotee.email) return null;
         return db.execute(
-            "INSERT IGNORE INTO users (email, password, role) VALUES (?, ?, ?)",
-            [devotee.email, hashedPassword, "user"]
+        "INSERT IGNORE INTO users (email, password, role, user_type) VALUES (?, ?, ?, ?)",
+        [devotee.email, hashedPassword, "user", "trial"]
         );
       });
       await Promise.all(userInsertPromises.filter(Boolean));
