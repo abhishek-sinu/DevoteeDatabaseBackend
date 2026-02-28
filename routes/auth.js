@@ -12,6 +12,7 @@ const SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
 // 🔐 Register Endpoint
 router.post("/register", async (req, res) => {
+    console.log('[Auth][register] Request body:', req.body);
     const { email, password, role } = req.body;
     if (!email || !password || !role) {
         return res.status(400).json({ message: "All fields are required" });
@@ -35,6 +36,7 @@ router.post("/register", async (req, res) => {
 
 // 🔑 Login Endpoint
 router.post("/login", async (req, res) => {
+    console.log('[Auth][login] Request body:', req.body);
     const { email, password } = req.body;
     try {
         const [rows] = await db.execute("SELECT * FROM users WHERE email = ?", [email]);
@@ -43,8 +45,11 @@ router.post("/login", async (req, res) => {
         const user = rows[0];
         const match = await bcrypt.compare(password, user.password);
         if (!match) return res.status(401).json({ message: "Invalid credentials" });
+        console.log(`[Auth][login] User authenticated jwt token: ${email}, Role: ${user.role}`);
+        const token = jwt.sign({ email: user.email, role: user.role }, SECRET, { expiresIn: "1h" });
 
-        const token = jwt.sign({ userId: user.id, role: user.role }, SECRET, { expiresIn: "1h" });
+        console.log(`[Auth][login] User logged in: ${email}, Role: ${user.role}`);
+        console.log(`[Auth][login] Generated JWT token: ${token}`);
         res.json({ token });
     } catch (err) {
         console.error(err);

@@ -81,27 +81,80 @@ router.get('/payment', async (req, res) => {
 });
 
 router.post('/verify', async (req, res) => {
+  console.log('[Cashfree][verify] Request body:', req.body);
 	try {
-		let { orderId } = req.body;
-		const response = await cf.PGFetchOrder(orderId);
-		res.json(response.data);
-    try {
-  await db.execute(
-    `UPDATE payments SET verify_response = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
-    [
-      JSON.stringify(response.data),
-      response.data.order_status || 'verified',
-      orderId
-    ]
-  );
-  console.log('[DB][payments][update] Payment record updated for order_id:', orderId);
-  } catch (dbErr) {
-    console.error('[DB][payments][update] Error:', dbErr);
-  }
+      let { orderId, duration } = req.body;
+      const response = await cf.PGFetchOrder(orderId);
+      res.json(response.data);
+      try {
+        await db.execute(
+          `UPDATE payments SET verify_response = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
+          [
+            JSON.stringify(response.data),
+            response.data.order_status || 'verified',
+            orderId
+          ]
+        );
+        console.log('[DB][payments][update] Payment record updated for order_id:', orderId);
+      } catch (dbErr) {
+        console.error('[DB][payments][update] Error:', dbErr);
+      }
+
+      // If payment is successful, update user_type and premium_expiry_date
+      if (response.data.order_status === 'PAID' || response.data.order_status === 'SUCCESS') {
+        try {
+          // Get customer_id from payments table
+          const [paymentRows] = await db.execute(
+            'SELECT customer_email FROM payments WHERE order_id = ?',
+            [orderId]
+          );
+          if (paymentRows.length === 0) {
+            console.error('[DB][users][update] No payment record found for order_id:', orderId);
+            return;
+          }
+          const customer_id = paymentRows[0].customer_email;
+
+          // Get current premium_expiry_date from users table
+          const [userRows] = await db.execute(
+            'SELECT premium_expiry_date FROM users WHERE id = ?',
+            [customer_id]
+          );
+          let baseDate = new Date();
+          if (userRows.length > 0 && userRows[0].premium_expiry_date) {
+            const currentExpiry = new Date(userRows[0].premium_expiry_date);
+            if (!isNaN(currentExpiry.getTime()) && currentExpiry > baseDate) {
+              baseDate = currentExpiry;
+            }
+          }
+
+          // Calculate new expiry date based on plan
+          let newExpiry = new Date(baseDate);
+          if (duration === 'monthly') {
+            newExpiry.setDate(newExpiry.getDate() + 30);
+          } else if (duration === '6month') {
+            newExpiry.setMonth(newExpiry.getMonth() + 6);
+          } else if (duration === 'yearly') {
+            newExpiry.setFullYear(newExpiry.getFullYear() + 1);
+          } else {
+            // Default to 30 days if plan is not recognized
+            newExpiry.setDate(newExpiry.getDate() + 30);
+          }
+
+          // Update user_type and premium_expiry_date
+          await db.execute(
+            'UPDATE users SET user_type = ?, premium_expiry_date = ? WHERE email = ?',
+            ['premium', newExpiry.toISOString().slice(0, 19).replace('T', ' '), customer_id]
+          );
+          console.log('[DB][users][update] User upgraded to premium:', customer_id, 'Expiry:', newExpiry);
+        } catch (userErr) {
+          console.error('[DB][users][update] Error:', userErr);
+        }
+      }
 	} catch (error) {
 		console.error(error?.response?.data || error.message);
 		res.status(500).json({ error: error?.response?.data?.message || 'Verification failed' });
 	}
+  console.log('[Cashfree][verify] Verification process completed for orderId:', req.body.orderId+", duration:", req.body.duration+", response:", JSON.stringify(response.data));
 });
 
 export default router;

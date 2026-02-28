@@ -452,7 +452,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   // Get premium expiry date by email
 app.get('/api/users/premium-expiry', async (req, res) => {
-  const { email } = req.query;
+  console.log('[Get Premium Expiry] Query params:', req.query);
+  const email = req.query.userId;
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
@@ -697,15 +698,17 @@ app.post('/api/signup', async (req, res) => {
     }
   });
 
-  // Update devotee
+  // Update devotee (admin only)
   app.put("/api/devotees/:id", verifyToken, allowAdmin, upload.single("photo"), async (req, res) => {
+    // ...existing code for admin update...
+    console.log("Updating devotee with ID:", req.params.id);
     try {
       const id = req.params.id;
       const allowedFields = [
         "first_name", "middle_name", "last_name", "gender", "dob", "ethnicity", "citizenship", "marital_status",
         "education_qualification_code", "address1", "address2", "pin_code", "email", "mobile_no", "whatsapp_no",
         "initiated_name", "photo", "spiritual_master_id", "first_initiation_date", "iskcon_first_contact_date",
-        "second_initiated", "second_initiation_date", "full_time_devotee", "temple_name", "status", "facilitator_id"
+        "second_initiated", "second_initiation_date", "full_time_devotee", "temple_name", "facilitator_id"
       ];
       let photo = null;
       if (req.file) {
@@ -728,6 +731,51 @@ app.post('/api/signup', async (req, res) => {
       res.json({ updated: result.affectedRows > 0 });
     } catch (err) {
       console.error("❌ Error updating devotee:", err);
+      res.status(500).json({ error: "Failed to update devotee", details: err.message });
+    }
+  });
+
+  // Update own devotee profile (self-service, not admin)
+  app.put("/api/devotees/:id/self", verifyToken, upload.single("photo"), async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      const emailParam = req.params.id;
+      console.log("jwt token email:", userEmail, "Devotee email from params:", emailParam);
+      if (!userEmail) {
+        return res.status(401).json({ error: "Unauthorized: No email in token" });
+      }
+      // Check that this devotee belongs to the user
+      if (emailParam !== userEmail) {
+        return res.status(403).json({ error: "Forbidden: You can only update your own profile" });
+      }
+      const [[devotee]] = await db.execute("SELECT email FROM devotees WHERE email=?", [emailParam]);
+      if (!devotee) {
+        return res.status(404).json({ error: "Devotee not found" });
+      }
+      const allowedFields = [
+        "first_name", "middle_name", "last_name", "gender", "dob", "ethnicity", "citizenship", "marital_status",
+        "education_qualification_code", "address1", "address2", "pin_code", "email", "mobile_no", "whatsapp_no",
+        "initiated_name", "photo", "spiritual_master_id", "first_initiation_date", "iskcon_first_contact_date",
+        "second_initiated", "second_initiation_date", "full_time_devotee", "temple_name", "facilitator_id"
+      ];
+      let photo = null;
+      if (req.file) {
+        photo = `/uploads/${req.file.filename}`;
+      } else if (req.body.photo) {
+        photo = req.body.photo;
+      } else {
+        const [[existing]] = await db.execute("SELECT photo FROM devotees WHERE email=?", [emailParam]);
+        photo = existing?.photo ?? null;
+      }
+      const params = allowedFields.map(field => field === "photo" ? photo : req.body[field] ?? null);
+      params.push(emailParam);
+      const [result] = await db.execute(
+        `UPDATE devotees SET ${allowedFields.map(field => `${field}=?`).join(", ")} WHERE email=?`,
+        params
+      );
+      res.json({ updated: result.affectedRows > 0 });
+    } catch (err) {
+      console.error("❌ Error updating own devotee profile:", err);
       res.status(500).json({ error: "Failed to update devotee", details: err.message });
     }
   });
