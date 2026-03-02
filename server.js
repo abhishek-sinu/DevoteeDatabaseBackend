@@ -370,6 +370,35 @@
 // Use emailjs for backend email sending (node version, not emailjs-com)
 
 
+/**
+ * @swagger
+ * /api/check-email-exists:
+ *   post:
+ *     summary: Check if email exists in users table
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: Email existence result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 exists:
+ *                   type: boolean
+ *                   example: true
+ */
+
 // ...existing code...
 // Swagger setup (must be after app is initialized)
 import swaggerUi from 'swagger-ui-express';
@@ -391,9 +420,9 @@ import nodemailer from 'nodemailer';
   import facilitatorRoutes from "./routes/facilitator.js";
   import cashfreeRoutes from  "./routes/cashfree.js";
 
-
   dotenv.config();
   const app = express();
+  app.use(express.json());
 
   
 const swaggerOptions = {
@@ -421,6 +450,34 @@ const swaggerOptions = {
   apis: ['./routes/*.js', './server.js'], // Path to the API docs (include server.js)
 };
 
+
+app.post('/api/check-email-exists', cors({ origin: process.env.DOMAIN || 'http://localhost:3000' }), async (req, res) => {
+  console.log('[Check Email Exists] Raw request body:', req.body);
+  let email = undefined;
+  if (req.body && typeof req.body === 'object') {
+    if (typeof req.body.email === 'string') {
+      email = req.body.email;
+      console.log('[Check Email Exists] Extracted email:', email);
+    } else {
+      console.warn('[Check Email Exists] req.body.email is not a string:', req.body.email);
+    }
+  } else {
+    console.warn('[Check Email Exists] req.body is not an object:', req.body);
+  }
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  try {
+    const [rows] = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
+    const exists = rows.length > 0;
+    console.log(`[Check Email Exists] Responding with exists:`, exists);
+    res.json({ exists });
+  } catch (err) {
+    console.error('Error checking email existence:', err);
+    res.status(500).json({ error: 'Failed to check email', details: err.message });
+  }
+});
+
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -429,8 +486,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
-
-  app.use(express.json());
 
   app.use("/api", authRoutes);
   app.use("/uploads", express.static("uploads"));
