@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@cashfreepayments/cashfree-js": "^1.0.6",
+    "@sendgrid/mail": "^8.1.6",
     "bcrypt": "^6.0.0",
     "cashfree-pg": "^5.1.0",
     "cors": "^2.8.6",

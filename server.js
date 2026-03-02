@@ -475,44 +475,48 @@ app.get('/api/users/premium-expiry', async (req, res) => {
   // Send OTP to email using emailjs (node)
   app.post('/api/send-otp', async (req, res) => {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email is required' });
+    console.log('[SEND-OTP] Request received for email:', email);
+    if (!email) {
+      console.warn('[SEND-OTP] No email provided in request body');
+      return res.status(400).json({ error: 'Email is required' });
+    }
     try {
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiry
+      console.log('[SEND-OTP] Generated OTP:', otp, 'Expires at:', expiresAt);
 
       // Save OTP to DB
       await db.execute(
         'INSERT INTO email_otps (email, otp, expires_at, verified) VALUES (?, ?, ?, FALSE)',
         [email, otp, expiresAt]
       );
+      console.log('[SEND-OTP] OTP saved to DB for email:', email);
 
-      // Send OTP to email using emailjs (node)
-      // You must install emailjs: npm install emailjs
-      // Hardcoded credentials from sample (replace with your actual values)
+      // Log environment variables (mask API key for safety)
+      const apiKey = process.env.SENDGRID_API_KEY;
+      const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+      console.log('[SEND-OTP] SENDGRID_API_KEY present:', !!apiKey, '| SENDGRID_FROM_EMAIL:', fromEmail);
 
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-          user: 'vaidhisadhanabhakti@gmail.com',
-          pass: 'zfplndicqjszxjag', // Updated to new app password
-        },
-      });
+      // Send OTP to email using SendGrid
+      const sgMail = await import('@sendgrid/mail');
+      sgMail.default.setApiKey(apiKey);
 
-      await transporter.sendMail({
-        from: 'vaidhisadhanabhakti@gmail.com',
+      const msg = {
         to: email,
+        from: fromEmail || 'noreply@yourdomain.com',
         subject: 'Your Signup OTP',
         text: `Your OTP for signup is: ${otp}`,
-      });
-
+      };
+      console.log('[SEND-OTP] Sending email via SendGrid:', msg);
+      await sgMail.default.send(msg);
+      console.log('[SEND-OTP] Email sent successfully to:', email);
       res.json({ message: 'OTP sent to email' });
     } catch (err) {
-      console.error('Error sending OTP:', err);
+      console.error('[SEND-OTP] Error sending OTP:', err);
       res.status(500).json({ error: 'Failed to send OTP', details: err.message });
     }
+    //53B48BRPDQWALW6VUA2PJ1M9 recovery code..
   });
 // Verify OTP
 app.post('/api/verify-otp', async (req, res) => {
