@@ -304,47 +304,128 @@ router.put('/entries/:id', async (req, res) => {
     const { id } = req.params;
     console.log('[Sadhana][Update by ID] req.params:', req.params);
     console.log('[Sadhana][Update by ID] req.body:', req.body);
-    const {
-        entryDate,
-        wakeUpTime,
-        chantingRounds,
-        readingTime,
-        readingTopic,
-        hearingTime,
-        hearingTopic,
-        serviceName,
-        serviceTime
-    } = req.body;
+    const pick = (...keys) => {
+        for (const key of keys) {
+            if (typeof req.body[key] !== 'undefined') return req.body[key];
+        }
+        return undefined;
+    };
+
+    const keepExistingIfBlank = (value, existingValue) => {
+        if (value === undefined || value === null || value === '') return existingValue;
+        return value;
+    };
     
     try {
+        console.log(`[Sadhana][Update by ID] Start update for id=${id}`);
+        const [existingRows] = await db.execute('SELECT * FROM sadhana_entries WHERE id = ?', [id]);
+        if (existingRows.length === 0) {
+            console.warn(`[Sadhana][Update by ID] Entry not found id=${id}`);
+            return res.status(404).json({ error: 'Entry not found' });
+        }
+
+        const existing = existingRows[0];
+        console.log('[Sadhana][Update by ID] Existing row snapshot:', {
+            id: existing.id,
+            user_id: existing.user_id,
+            entry_date: existing.entry_date,
+            wake_up_time: existing.wake_up_time,
+            sleeping_time: existing.sleeping_time,
+            chanting_before_700: existing.chanting_before_700,
+            chanting_before_730: existing.chanting_before_730,
+            attended_mangal_arati: existing.attended_mangal_arati
+        });
+
+        const payload = {
+            entry_date: keepExistingIfBlank(pick('entryDate', 'entry_date'), existing.entry_date),
+            wake_up_time: keepExistingIfBlank(pick('wakeUpTime', 'wake_up_time'), existing.wake_up_time),
+            chanting_rounds: keepExistingIfBlank(pick('chantingRounds', 'chanting_rounds'), existing.chanting_rounds),
+            reading_time: keepExistingIfBlank(pick('readingTime', 'reading_time'), existing.reading_time),
+            reading_topic: keepExistingIfBlank(pick('readingTopic', 'reading_topic'), existing.reading_topic),
+            hearing_time: keepExistingIfBlank(pick('hearingTime', 'hearing_time'), existing.hearing_time),
+            hearing_topic: keepExistingIfBlank(pick('hearingTopic', 'hearing_topic'), existing.hearing_topic),
+            service_name: keepExistingIfBlank(pick('serviceName', 'service_name'), existing.service_name),
+            service_time: keepExistingIfBlank(pick('serviceTime', 'service_time'), existing.service_time),
+            sleeping_time: keepExistingIfBlank(pick('sleepingTime', 'sleeping_time'), existing.sleeping_time),
+            chanting_before_700: keepExistingIfBlank(pick('chantingBefore700Time', 'chantingBefore700', 'chanting_before_700'), existing.chanting_before_700),
+            chanting_before_730: keepExistingIfBlank(pick('chantingBefore730Time', 'chantingBefore730', 'chanting_before_730'), existing.chanting_before_730),
+            attended_mangal_arati: keepExistingIfBlank(pick('attendedMangalAratiTime', 'attendedMangalArati', 'attended_mangal_arati'), existing.attended_mangal_arati),
+            attended_bhagavatam_class: keepExistingIfBlank(pick('attendedBhagavatamClass', 'attended_bhagavatam_class'), existing.attended_bhagavatam_class),
+            book_distribution: keepExistingIfBlank(pick('bookDistribution', 'book_distribution'), existing.book_distribution),
+            prasadam_honored: keepExistingIfBlank(pick('prasadamHonored', 'prasadam_honored'), existing.prasadam_honored),
+            ekadashi_followed: keepExistingIfBlank(pick('ekadashiFollowed', 'ekadashi_followed'), existing.ekadashi_followed),
+            japa_quality: keepExistingIfBlank(pick('japaQuality', 'japa_quality'), existing.japa_quality),
+        };
+
+        const changedFields = Object.keys(payload).filter((key) => payload[key] !== existing[key]);
+        console.log(`[Sadhana][Update by ID] Fields changed for id=${id}:`, changedFields);
+        if (changedFields.length === 0) {
+            console.log(`[Sadhana][Update by ID] No effective changes for id=${id}`);
+        }
+        if (changedFields.includes('entry_date')) {
+            console.warn(`[Sadhana][Update by ID] entry_date changed for id=${id}:`, {
+                before: existing.entry_date,
+                after: payload.entry_date
+            });
+        }
+
         const params = [
-            entryDate,
-            wakeUpTime,
-            chantingRounds,
-            readingTime,
-            readingTopic,
-            hearingTime,
-            hearingTopic,
-            serviceName,
-            serviceTime,
+            payload.entry_date,
+            payload.wake_up_time,
+            payload.chanting_rounds,
+            payload.reading_time,
+            payload.reading_topic,
+            payload.hearing_time,
+            payload.hearing_topic,
+            payload.service_name,
+            payload.service_time,
+            payload.sleeping_time,
+            payload.chanting_before_700,
+            payload.chanting_before_730,
+            payload.attended_mangal_arati,
+            payload.attended_bhagavatam_class,
+            payload.book_distribution,
+            payload.prasadam_honored,
+            payload.ekadashi_followed,
+            payload.japa_quality,
             id
         ];
         console.log('[Sadhana][Update by ID] Params:', params);
         const query = `
             UPDATE sadhana_entries SET
                 entry_date = ?, wake_up_time = ?, chanting_rounds = ?, reading_time = ?, reading_topic = ?,
-                hearing_time = ?, hearing_topic = ?, service_name = ?, service_time = ?
+                hearing_time = ?, hearing_topic = ?, service_name = ?, service_time = ?,
+                sleeping_time = ?, chanting_before_700 = ?, chanting_before_730 = ?,
+                attended_mangal_arati = ?, attended_bhagavatam_class = ?, book_distribution = ?,
+                prasadam_honored = ?, ekadashi_followed = ?, japa_quality = ?
             WHERE id = ?
         `;
 
         const [result] = await db.execute(query, params);
+        console.log(`[Sadhana][Update by ID] Update result for id=${id}:`, {
+            affectedRows: result.affectedRows,
+            changedRows: result.changedRows
+        });
 
         if (result.affectedRows === 0) {
+            console.warn(`[Sadhana][Update by ID] No rows affected for id=${id}`);
             return res.status(404).json({ error: 'Entry not found' });
         }
 
         // return the updated row
         const [rows] = await db.execute('SELECT * FROM sadhana_entries WHERE id = ?', [id]);
+        if (rows.length > 0) {
+            console.log('[Sadhana][Update by ID] Updated row snapshot:', {
+                id: rows[0].id,
+                user_id: rows[0].user_id,
+                entry_date: rows[0].entry_date,
+                wake_up_time: rows[0].wake_up_time,
+                sleeping_time: rows[0].sleeping_time,
+                chanting_before_700: rows[0].chanting_before_700,
+                chanting_before_730: rows[0].chanting_before_730,
+                attended_mangal_arati: rows[0].attended_mangal_arati
+            });
+        }
         res.status(200).json(rows[0]);
     } catch (error) {
         console.error('❌ Error updating entry by id:', error);
@@ -356,7 +437,13 @@ router.put('/entries/:id', async (req, res) => {
 router.delete('/entries/:id', async (req, res) => {
     const { id } = req.params;
     try {
+        console.warn(`[Sadhana][Delete by ID] Delete requested for id=${id}`);
+        const [beforeRows] = await db.execute('SELECT id, user_id, entry_date, sleeping_time FROM sadhana_entries WHERE id = ?', [id]);
+        console.warn('[Sadhana][Delete by ID] Row before delete:', beforeRows[0] || null);
         const [result] = await db.execute('DELETE FROM sadhana_entries WHERE id = ?', [id]);
+        console.warn(`[Sadhana][Delete by ID] Delete result for id=${id}:`, {
+            affectedRows: result.affectedRows
+        });
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Entry not found' });
         }

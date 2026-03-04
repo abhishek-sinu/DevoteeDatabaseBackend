@@ -1,0 +1,10 @@
+ALTER TABLE sadhana_entries
+    ADD COLUMN IF NOT EXISTS sleeping_time TIME NULL,
+    ADD COLUMN IF NOT EXISTS chanting_before_700 TIME NULL,
+    ADD COLUMN IF NOT EXISTS chanting_before_730 TIME NULL,
+    ADD COLUMN IF NOT EXISTS attended_mangal_arati TIME NULL,
+    ADD COLUMN IF NOT EXISTS attended_bhagavatam_class VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS book_distribution VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS prasadam_honored VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS ekadashi_followed VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS japa_quality VARCHAR(255) NULL;
