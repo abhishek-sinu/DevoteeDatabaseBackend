@@ -548,23 +548,85 @@ app.get('/api/users/premium-expiry', async (req, res) => {
       );
       console.log('[SEND-OTP] OTP saved to DB for email:', email);
 
-      // Log environment variables (mask API key for safety)
-      const apiKey = process.env.SENDGRID_API_KEY;
-      const fromEmail = process.env.SENDGRID_FROM_EMAIL;
-      console.log('[SEND-OTP] SENDGRID_API_KEY present:', !!apiKey, '| SENDGRID_FROM_EMAIL:', fromEmail);
+      // Log environment variables for SMTP
+      const smtpHost = process.env.SMTP_HOST;
+      const smtpPort = process.env.SMTP_PORT;
+      const smtpUser = process.env.SMTP_USER;
+      const smtpPass = process.env.SMTP_PASS;
+      const fromEmail = process.env.SMTP_FROM_EMAIL || 'no-reply@vaidhisadhanabhakti.cloud';
+      console.log('[SEND-OTP] SMTP config:', { smtpHost, smtpPort, smtpUser, fromEmail });
 
-      // Send OTP to email using SendGrid
-      const sgMail = await import('@sendgrid/mail');
-      sgMail.default.setApiKey(apiKey);
+      // Send OTP to email using nodemailer (Hostinger SMTP)
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: Number(smtpPort) || 465,
+        secure: true,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
 
-      const msg = {
+      const mailOptions = {
+        from: fromEmail,
         to: email,
-        from: fromEmail || 'noreply@yourdomain.com',
         subject: 'Your Signup OTP',
-        text: `Your OTP for signup is: ${otp}`,
+        text: `Your OTP for signup is: ${otp}. It is valid for 10 minutes.`,
       };
-      console.log('[SEND-OTP] Sending email via SendGrid:', msg);
-      await sgMail.default.send(msg);
+
+      const logoPath = path.resolve('uploads/public-data/VSB-logo.png');
+      const logoCid = 'vsb-info@vaidhisadhanabhakti.cloud';
+      const logoExists = fs.existsSync(logoPath);
+
+      const htmlBody = `
+        <div style="font-family: Arial, Helvetica, sans-serif; background-color: #f6f7fb; padding: 24px; margin: 0;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #eceef4;">
+            <tr>
+              <td style="padding: 28px 28px 16px 28px; text-align: center; background: #fff9ef;">
+                ${logoExists
+                  ? `<img src="cid:${logoCid}" alt="Vaidhi Sadhana Bhakti" style="max-width: 240px; height: auto; display: inline-block;" />`
+                  : `<h2 style="margin: 0; color: #5a2d0c; font-size: 26px; letter-spacing: 0.5px;">VAIDHI SADHANA BHAKTI</h2>`}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 28px; color: #222222;">
+                <h2 style="margin: 0 0 12px 0; font-size: 24px; color: #1f2a44;">Your One-Time Password (OTP)</h2>
+                <p style="margin: 0 0 18px 0; font-size: 15px; line-height: 1.6; color: #4a5568;">
+                  Use the following OTP to complete your signup. This code is valid for <strong>10 minutes</strong>.
+                </p>
+                <div style="margin: 0 0 18px 0; text-align: center;">
+                  <span style="display: inline-block; font-size: 34px; font-weight: 700; letter-spacing: 8px; color: #2d3748; background: #f7fafc; border: 1px dashed #cbd5e0; border-radius: 10px; padding: 12px 20px;">${otp}</span>
+                </div>
+                <p style="margin: 0 0 8px 0; font-size: 14px; line-height: 1.6; color: #718096;">
+                  For your security, do not share this OTP with anyone.
+                </p>
+                <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #718096;">
+                  If you did not request this, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 16px 28px 24px 28px; font-size: 12px; color: #94a3b8; text-align: center; border-top: 1px solid #edf2f7;">
+                © ${new Date().getFullYear()} Vaidhi Sadhana Bhakti. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </div>
+      `;
+
+      mailOptions.html = htmlBody;
+      if (logoExists) {
+        mailOptions.attachments = [
+          {
+            filename: 'VSB-logo.png',
+            path: logoPath,
+            cid: logoCid,
+          },
+        ];
+      }
+
+      console.log('[SEND-OTP] Sending email via nodemailer:', mailOptions);
+      await transporter.sendMail(mailOptions);
       console.log('[SEND-OTP] Email sent successfully to:', email);
       res.json({ message: 'OTP sent to email' });
     } catch (err) {
