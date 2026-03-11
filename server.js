@@ -419,6 +419,7 @@ import nodemailer from 'nodemailer';
   import notificationRoutes from "./routes/Notification.js";
   import facilitatorRoutes from "./routes/facilitator.js";
   import cashfreeRoutes from  "./routes/cashfree.js";
+  import todosRouter from './routes/todos.js';
 
   dotenv.config();
   const app = express();
@@ -495,6 +496,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use("/api/notifications", notificationRoutes);
   app.use("/api/facilitator", facilitatorRoutes);
   app.use("/api", cashfreeRoutes);
+  app.use('/api/todos', todosRouter);
 
 
   // Multer setup
