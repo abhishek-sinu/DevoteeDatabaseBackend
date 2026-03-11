@@ -116,16 +116,21 @@ router.post('/verify', async (req, res) => {
 
           // Get current premium_expiry_date from users table
           const [userRows] = await db.execute(
-            'SELECT premium_expiry_date FROM users WHERE id = ?',
+            'SELECT premium_expiry_date FROM users WHERE email = ?',
             [customer_id]
           );
+          console.log('[DB][users][update] Current premium_expiry_date for user_id:', customer_id, 'is', userRows.length > 0 ? userRows[0].premium_expiry_date : 'N/A');
           let baseDate = new Date();
           if (userRows.length > 0 && userRows[0].premium_expiry_date) {
             const currentExpiry = new Date(userRows[0].premium_expiry_date);
             if (!isNaN(currentExpiry.getTime()) && currentExpiry > baseDate) {
               baseDate = currentExpiry;
             }
+            var oldExpiryDate = userRows[0].premium_expiry_date;
+          } else {
+            var oldExpiryDate = null;
           }
+          console.log('[DB][users][update] Base date for expiry calculation:', baseDate);
 
           // Calculate new expiry date based on plan
           let newExpiry = new Date(baseDate);
@@ -139,13 +144,13 @@ router.post('/verify', async (req, res) => {
             // Default to 30 days if plan is not recognized
             newExpiry.setDate(newExpiry.getDate() + 30);
           }
-
+          console.log('[DB][users][update] New premium expiry date calculated:', newExpiry);
           // Update user_type and premium_expiry_date
           await db.execute(
             'UPDATE users SET user_type = ?, premium_expiry_date = ? WHERE email = ?',
             ['premium', newExpiry.toISOString().slice(0, 19).replace('T', ' '), customer_id]
           );
-          console.log('[DB][users][update] User upgraded to premium:', customer_id, 'Expiry:', newExpiry);
+          console.log('[DB][users][update] User upgraded to premium:', customer_id, 'Old Expiry:', oldExpiryDate, 'New Expiry:', newExpiry);
         } catch (userErr) {
           console.error('[DB][users][update] Error:', userErr);
         }
