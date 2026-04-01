@@ -421,6 +421,9 @@ import nodemailer from 'nodemailer';
   import cashfreeRoutes from  "./routes/cashfree.js";
   import todosRouter from './routes/todos.js';
 
+  // Start monthly email scheduler
+  import './monthlyEmailScheduler.js';
+
   dotenv.config();
   const app = express();
   app.use(express.json());
