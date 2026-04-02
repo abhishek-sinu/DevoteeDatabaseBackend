@@ -979,30 +979,35 @@ app.post('/api/signup', async (req, res) => {
 
   app.get("/api/counsellor/devotees", verifyToken, async (req, res) => {
     const email = req.query.user_id; // email from frontend
+    console.log("[COUNSELLOR-DEVOTEES] Received user_id (email):", email);
 
     if (!email) {
+      console.warn("[COUNSELLOR-DEVOTEES] Missing user_id (email) in query params");
       return res.status(400).json({ error: "Missing user_id (email)" });
     }
 
     try {
       const [[user]] = await db.execute("SELECT id FROM devotees WHERE email = ?", [email]);
-      if (!user) return res.status(404).json({ error: "User not found" });
+      console.log("[COUNSELLOR-DEVOTEES] DB result for email:", user);
+      if (!user) {
+        console.warn("[COUNSELLOR-DEVOTEES] No devotee found for email:", email);
+        return res.status(404).json({ error: "User not found" });
+      }
 
       const facilitatorId = user.id;
-
-      console.log("facilitatorId:", facilitatorId);
+      console.log("[COUNSELLOR-DEVOTEES] facilitatorId:", facilitatorId);
 
       const [devotees] = await db.execute(`
-      SELECT d.initiated_name, d.id,d.email
-      FROM devotees d
-      WHERE d.facilitator_id = ?
-    `, [facilitatorId]);
+        SELECT d.initiated_name, d.id, d.email
+        FROM devotees d
+        WHERE d.facilitator_id = ?
+      `, [facilitatorId]);
 
-      console.log("devotees under this councellor:", devotees);
+      console.log("[COUNSELLOR-DEVOTEES] Devotees under this counsellor:", devotees);
 
       res.json(devotees.map(d => ({ devotee: d })));
     } catch (err) {
-      console.error("Error fetching devotees:", err);
+      console.error("[COUNSELLOR-DEVOTEES] Error fetching devotees:", err);
       res.status(500).json({ error: "Internal server error" });
     }
   });
