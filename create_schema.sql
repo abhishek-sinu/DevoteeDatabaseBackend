@@ -102,5 +102,18 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_notifications_created_at (created_at)
 );
 
+
+-- Table: password_resets
+-- Stores password reset tokens for users
+CREATE TABLE IF NOT EXISTS password_resets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    token VARCHAR(128) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NULL,
+    UNIQUE KEY (email),
+    INDEX idx_token (token)
+);
+
 INSERT INTO users (id, email, password, role, created_at)
 VALUES (1, 'aparupagourangadas.hs@gmail.com', '$2b$10$KHEUJJk1E2bJtA6DfjgQnOpuAS.g9klmE04Z.pyHwyG4Xg0ToUNcO', 'admin', '2025-09-11 11:32:30');
