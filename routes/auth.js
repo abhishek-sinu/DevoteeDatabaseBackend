@@ -95,7 +95,9 @@ router.post("/forgot-password", async (req, res) => {
             secure: true,
             auth: { user: smtpUser, pass: smtpPass },
         });
-        const resetUrl = `${process.env.DOMAIN || 'http://localhost:3000'}/reset-password?token=${token}`;
+        let baseUrl = process.env.DOMAIN || 'http://localhost:3000';
+        if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+        const resetUrl = `${baseUrl}/reset-password?token=${token}`;
                 // Prepare HTML email with logo (like OTP)
                 const logoPath = path.resolve('uploads/public-data/VSB-logo.png');
                 const logoCid = 'vsb-info@vaidhisadhanabhakti.cloud';

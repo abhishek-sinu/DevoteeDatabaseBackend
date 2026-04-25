@@ -64,6 +64,94 @@ const toMinutes = (value, unit) => {
 };
 
 // 🔹 Get all predefined sadhana templates
+// POST/PUT for predefined_template (add/update)
+router.post('/predefined-templates', async (req, res) => {
+    const {
+        sadhanaTemplate,
+        entry_date,
+        wake_up_time,
+        chanting_rounds,
+        reading_time,
+        reading_topic,
+        hearing_time,
+        hearing_topic,
+        service_name,
+        service_time,
+        sleeping_time,
+        chanting_before_700,
+        chanting_before_730,
+        attended_mangal_arati,
+        attended_bhagavatam_class,
+        book_distribution,
+        prasadam_honored,
+        ekadashi_followed,
+        japa_quality,
+        sixteen_round_completed_time
+    } = req.body;
+    try {
+        const now = new Date();
+        await db.execute(
+            `INSERT INTO predefined_template (
+                sadhana_template, entry_date, wake_up_time, chanting_rounds, reading_time, reading_topic,
+                hearing_time, hearing_topic, service_name, service_time, sleeping_time, chanting_before_700,
+                chanting_before_730, attended_mangal_arati, attended_bhagavatam_class, book_distribution,
+                prasadam_honored, ekadashi_followed, japa_quality, sixteen_round_completed_time, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                entry_date = VALUES(entry_date),
+                wake_up_time = VALUES(wake_up_time),
+                chanting_rounds = VALUES(chanting_rounds),
+                reading_time = VALUES(reading_time),
+                reading_topic = VALUES(reading_topic),
+                hearing_time = VALUES(hearing_time),
+                hearing_topic = VALUES(hearing_topic),
+                service_name = VALUES(service_name),
+                service_time = VALUES(service_time),
+                sleeping_time = VALUES(sleeping_time),
+                chanting_before_700 = VALUES(chanting_before_700),
+                chanting_before_730 = VALUES(chanting_before_730),
+                attended_mangal_arati = VALUES(attended_mangal_arati),
+                attended_bhagavatam_class = VALUES(attended_bhagavatam_class),
+                book_distribution = VALUES(book_distribution),
+                prasadam_honored = VALUES(prasadam_honored),
+                ekadashi_followed = VALUES(ekadashi_followed),
+                japa_quality = VALUES(japa_quality),
+                sixteen_round_completed_time = VALUES(sixteen_round_completed_time),
+                updated_at = VALUES(updated_at)
+            `,
+            [
+                sadhanaTemplate,
+                entry_date,
+                wake_up_time,
+                chanting_rounds,
+                reading_time,
+                reading_topic,
+                hearing_time,
+                hearing_topic,
+                service_name,
+                service_time,
+                sleeping_time,
+                chanting_before_700,
+                chanting_before_730,
+                attended_mangal_arati,
+                attended_bhagavatam_class,
+                book_distribution,
+                prasadam_honored,
+                ekadashi_followed,
+                japa_quality,
+                !!sixteen_round_completed_time,
+                now,
+                now
+            ]
+        );
+        res.status(200).json({ message: 'Predefined template upserted successfully' });
+    } catch (error) {
+        console.error('❌ Error upserting predefined template:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+});
+
+// 🔹 Get all predefined sadhana templates
 router.get('/predefined-templates', async (req, res) => {
     console.log('[PredefinedTemplates][GET] Incoming query params:', req.query);
     const { sadhana_template } = req.query;
@@ -96,6 +184,7 @@ router.get('/predefined-templates', async (req, res) => {
             prasadam_honored: !!row.prasadam_honored,
             ekadashi_followed: !!row.ekadashi_followed,
             japa_quality: !!row.japa_quality,
+            sixteen_round_completed_time: !!row.sixteen_round_completed_time,
             created_at: row.created_at,
             updated_at: row.updated_at
         }));
@@ -130,7 +219,9 @@ const {
     bookDistribution,
     prasadamHonored,
     ekadashiFollowed,
-    japaQuality
+    japaQuality,
+    sixteenRoundCompletedTime,
+    sixteen_round_completed_time // fallback for old clients
 } = req.body;
 
     // Helper to convert undefined to null
@@ -160,8 +251,8 @@ const {
                 chanting_before_700, chanting_before_730,
                 attended_mangal_arati, attended_bhagavatam_class,
                 book_distribution, prasadam_honored,
-                ekadashi_followed, japa_quality
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ekadashi_followed, japa_quality, sixteen_round_completed_time
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         await db.execute(query, [
@@ -183,7 +274,8 @@ const {
     safe(bookDistribution),
     safe(prasadamHonored),
     safe(ekadashiFollowed),
-    safe(japaQuality)
+    safe(japaQuality),
+    safe(sixteenRoundCompletedTime !== undefined ? sixteenRoundCompletedTime : sixteen_round_completed_time)
 ]);
 
         res.status(201).json({ message: 'Sadhana entry added successfully' });
@@ -210,7 +302,7 @@ router.get('/entries/:email', async (req, res) => {
             'SELECT * FROM sadhana_entries WHERE user_id = ? ORDER BY entry_date DESC',
             [userId]
         );
-
+        console.log('[Sadhana][GET /entries/:email] SQL result:', entries);
         res.status(200).json(entries);
     } catch (error) {
         console.error('❌ Error fetching entries:', error);
@@ -355,6 +447,7 @@ router.put('/entries/:id', async (req, res) => {
             prasadam_honored: keepExistingIfBlank(pick('prasadamHonored', 'prasadam_honored'), existing.prasadam_honored),
             ekadashi_followed: keepExistingIfBlank(pick('ekadashiFollowed', 'ekadashi_followed'), existing.ekadashi_followed),
             japa_quality: keepExistingIfBlank(pick('japaQuality', 'japa_quality'), existing.japa_quality),
+            sixteen_round_completed_time: keepExistingIfBlank(pick('sixteenRoundCompletedTime', 'sixteen_round_completed_time'), existing.sixteen_round_completed_time),
         };
 
         const changedFields = Object.keys(payload).filter((key) => payload[key] !== existing[key]);
@@ -388,6 +481,7 @@ router.put('/entries/:id', async (req, res) => {
             payload.prasadam_honored,
             payload.ekadashi_followed,
             payload.japa_quality,
+            payload.sixteen_round_completed_time,
             id
         ];
         console.log('[Sadhana][Update by ID] Params:', params);
@@ -397,7 +491,8 @@ router.put('/entries/:id', async (req, res) => {
                 hearing_time = ?, hearing_topic = ?, service_name = ?, service_time = ?,
                 sleeping_time = ?, chanting_before_700 = ?, chanting_before_730 = ?,
                 attended_mangal_arati = ?, attended_bhagavatam_class = ?, book_distribution = ?,
-                prasadam_honored = ?, ekadashi_followed = ?, japa_quality = ?
+                prasadam_honored = ?, ekadashi_followed = ?, japa_quality = ?,
+                sixteen_round_completed_time = ?
             WHERE id = ?
         `;
 
@@ -496,10 +591,14 @@ router.get('/entries-by-month', async (req, res) => {
     }
     try {
         const dateFilter = `${year}-${month}`;
-        const [entries] = await db.execute(
-            `SELECT * FROM sadhana_entries WHERE user_id = ? AND DATE_FORMAT(entry_date, '%Y-%m') = ? ORDER BY entry_date`,
-            [user_id, dateFilter]
-        );
+        const sql = `SELECT * FROM sadhana_entries WHERE user_id = ? AND DATE_FORMAT(entry_date, '%Y-%m') = ? ORDER BY entry_date`;
+        // Inline parameters for debug SQL (for copy-paste)
+        let debugSql = sql;
+        debugSql = debugSql.replace('?', typeof user_id === 'string' ? `'${user_id}'` : user_id);
+        debugSql = debugSql.replace('?', `'${dateFilter}'`);
+        console.log('[Sadhana][GET /entries-by-month] SQL to run:', debugSql);
+        const [entries] = await db.execute(sql, [user_id, dateFilter]);
+        console.log(`[Sadhana][GET /entries-by-month] SQL result:`, entries);
         console.log(`[Sadhana][entries-by-month] Found ${entries.length} entries for user_id ${user_id} in ${dateFilter}`);
         res.json(entries);
     } catch (err) {
@@ -567,7 +666,8 @@ router.get('/template/:id', async (req, res) => {
             book_distribution: !!template.book_distribution,
             prasadam_honored: !!template.prasadam_honored,
             ekadashi_followed: !!template.ekadashi_followed,
-            japa_quality: !!template.japa_quality
+            japa_quality: !!template.japa_quality,
+            sixteenRoundCompletedTime: !!template.sixteen_round_completed_time
         };
         console.log('[Sadhana][Template GET] Sending response:', response);
         return res.status(200).json(response);
@@ -582,6 +682,8 @@ router.post('/template/:email', async (req, res) => {
     const { email } = req.params;
     console.log('[Sadhana][Template POST] req.params:', req.params);
     console.log('[Sadhana][Template POST] req.body:', req.body);
+    const safe = val => typeof val === 'undefined' ? null : val;
+    const bool = val => typeof val === 'undefined' ? 0 : !!val;
     const {
         userEmail,
         devoteeId,
@@ -602,7 +704,9 @@ router.post('/template/:email', async (req, res) => {
         bookDistribution,
         prasadamHonored,
         ekadashiFollowed,
-        japaQuality
+        japaQuality,
+        sixteenRoundCompletedTime,
+        sixteen_round_completed_time // fallback for old clients
     } = req.body;
     try {
         const now = new Date();
@@ -611,8 +715,8 @@ router.post('/template/:email', async (req, res) => {
                 user_email, devotee_id, entry_date, wake_up_time, chanting_rounds, reading_time, reading_topic,
                 hearing_time, hearing_topic, service_name, service_time, sleeping_time, chanting_before_700,
                 chanting_before_730, attended_mangal_arati, attended_bhagavatam_class, book_distribution,
-                prasadam_honored, ekadashi_followed, japa_quality, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                prasadam_honored, ekadashi_followed, japa_quality, sixteen_round_completed_time, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 devotee_id = VALUES(devotee_id),
                 entry_date = VALUES(entry_date),
@@ -633,29 +737,31 @@ router.post('/template/:email', async (req, res) => {
                 prasadam_honored = VALUES(prasadam_honored),
                 ekadashi_followed = VALUES(ekadashi_followed),
                 japa_quality = VALUES(japa_quality),
+                sixteen_round_completed_time = VALUES(sixteen_round_completed_time),
                 updated_at = VALUES(updated_at)
             `,
             [
-                userEmail,
-                devoteeId,
-                entryDate,
-                wakeUpTime,
-                chantingRounds,
-                readingTime,
-                readingTopic,
-                hearingTime,
-                hearingTopic,
-                serviceName,
-                serviceTime,
-                sleepingTime,
-                chantingBefore700,
-                chantingBefore730,
-                attendedMangalArati,
-                attendedBhagavatamClass,
-                bookDistribution,
-                prasadamHonored,
-                ekadashiFollowed,
-                japaQuality,
+                safe(userEmail),
+                safe(devoteeId),
+                bool(entryDate),
+                bool(wakeUpTime),
+                bool(chantingRounds),
+                bool(readingTime),
+                bool(readingTopic),
+                bool(hearingTime),
+                bool(hearingTopic),
+                bool(serviceName),
+                bool(serviceTime),
+                bool(sleepingTime),
+                bool(chantingBefore700),
+                bool(chantingBefore730),
+                bool(attendedMangalArati),
+                bool(attendedBhagavatamClass),
+                bool(bookDistribution),
+                bool(prasadamHonored),
+                bool(ekadashiFollowed),
+                bool(japaQuality),
+                bool(sixteenRoundCompletedTime !== undefined ? sixteenRoundCompletedTime : sixteen_round_completed_time),
                 now,
                 now
             ]
