@@ -26,3 +26,26 @@ export function allowAdmin(req, res, next) {
     }
     next();
 }
+
+// ✅ Function to decrypt data
+export function decrypt(encryptedData) {
+    try {
+        const bytes = CryptoJS.AES.decrypt(encryptedData, SECRET);
+        return bytes.toString(CryptoJS.enc.Utf8);
+    } catch (error) {
+        console.error('Decryption error:', error);
+        return null;
+    }
+}
+
+// ✅ Function to encrypt data
+import CryptoJS from "crypto-js";
+
+export function encrypt(data) {
+    try {
+        return CryptoJS.AES.encrypt(data, SECRET).toString();
+    } catch (error) {
+        console.error('Encryption error:', error);
+        return null;
+    }
+}

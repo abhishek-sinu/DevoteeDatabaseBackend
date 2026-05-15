@@ -420,6 +420,7 @@ import nodemailer from 'nodemailer';
   import facilitatorRoutes from "./routes/facilitator.js";
   import cashfreeRoutes from  "./routes/cashfree.js";
   import todosRouter from './routes/todos.js';
+  import * as passwordManagerRoutes from './routes/passwordManager.js';
 
   // Start monthly email scheduler
   import './monthlyEmailScheduler.js';
@@ -500,6 +501,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use("/api/facilitator", facilitatorRoutes);
   app.use("/api", cashfreeRoutes);
   app.use('/api/todos', todosRouter);
+  app.use('/api/passwords', passwordManagerRoutes.default);
 
 
   // Multer setup
