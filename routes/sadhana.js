@@ -302,7 +302,7 @@ router.get('/entries/:email', async (req, res) => {
             'SELECT * FROM sadhana_entries WHERE user_id = ? ORDER BY entry_date DESC',
             [userId]
         );
-        console.log('[Sadhana][GET /entries/:email] SQL result:', entries);
+        console.log(`[Sadhana][GET /entries/:email] Records fetched: ${entries.length}`);
         res.status(200).json(entries);
     } catch (error) {
         console.error('❌ Error fetching entries:', error);
@@ -583,11 +583,23 @@ router.delete('/entries/:id', async (req, res) => {
  *         description: Server error
  */
 router.get('/entries-by-month', async (req, res) => {
-    const { user_id, month, year } = req.query;
+    const rawUserId = req.query.user_id ?? req.query.userId ?? req.query.devotee_id;
+    const now = new Date();
+    const rawMonth = req.query.month ?? req.query.m;
+    const rawYear = req.query.year ?? req.query.y;
+    const month = String(rawMonth ?? (now.getMonth() + 1)).padStart(2, '0');
+    const year = String(rawYear ?? now.getFullYear());
+    const user_id = rawUserId;
+
     console.log(`[Sadhana][entries-by-month] Params: user_id=${user_id}, month=${month}, year=${year}`);
-    if (!user_id || !month || !year) {
-        console.warn('[Sadhana][entries-by-month] Missing required params');
-        return res.status(400).json({ message: 'user_id, month, and year are required as query params.' });
+    if (!user_id) {
+        console.warn('[Sadhana][entries-by-month] Missing required user_id param. Query:', req.query);
+        return res.status(400).json({ message: 'user_id is required as a query param.' });
+    }
+
+    if (!/^\d{2}$/.test(month) || Number(month) < 1 || Number(month) > 12 || !/^\d{4}$/.test(year)) {
+        console.warn('[Sadhana][entries-by-month] Invalid month/year params. Query:', req.query);
+        return res.status(400).json({ message: 'month must be MM and year must be YYYY.' });
     }
     try {
         const dateFilter = `${year}-${month}`;
@@ -598,8 +610,7 @@ router.get('/entries-by-month', async (req, res) => {
         debugSql = debugSql.replace('?', `'${dateFilter}'`);
         console.log('[Sadhana][GET /entries-by-month] SQL to run:', debugSql);
         const [entries] = await db.execute(sql, [user_id, dateFilter]);
-        console.log(`[Sadhana][GET /entries-by-month] SQL result:`, entries);
-        console.log(`[Sadhana][entries-by-month] Found ${entries.length} entries for user_id ${user_id} in ${dateFilter}`);
+        console.log(`[Sadhana][entries-by-month] Records fetched: ${entries.length} for user_id ${user_id} in ${dateFilter}`);
         res.json(entries);
     } catch (err) {
         console.error('[Sadhana][entries-by-month] Error:', err);

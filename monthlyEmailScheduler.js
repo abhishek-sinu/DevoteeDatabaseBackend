@@ -171,7 +171,7 @@ cron.schedule('0 8 * * 1', async () => {
   try {
     // Find users whose premium is expired (not premium, expiry date in past, and email exists)
     const [users] = await db.execute(
-      `SELECT email, first_name FROM users WHERE user_type != 'premium' AND premium_expiry_date IS NOT NULL AND premium_expiry_date < NOW() AND email IS NOT NULL`
+      `SELECT email, SUBSTRING_INDEX(email, '@', 1) AS first_name FROM users WHERE user_type != 'premium' AND premium_expiry_date IS NOT NULL AND premium_expiry_date < NOW() AND email IS NOT NULL`
     );
     console.log(`[SCHEDULER] Found ${users.length} users with expired premium.`);
     for (const user of users) {
@@ -260,7 +260,7 @@ cron.schedule('0 21 * * *', async () => {
     // 1. From devotees table
     const [devotees] = await db.execute('SELECT email, first_name FROM devotees WHERE email IS NOT NULL');
     // 2. From users table
-    const [users] = await db.execute('SELECT email, first_name FROM users WHERE email IS NOT NULL');
+    const [users] = await db.execute("SELECT email, SUBSTRING_INDEX(email, '@', 1) AS first_name FROM users WHERE email IS NOT NULL");
     // Merge and deduplicate by email
     const all = [...devotees, ...users].filter((v, i, a) => v.email && a.findIndex(t => t.email === v.email) === i);
     console.log(`[SCHEDULER] Found ${all.length} users to remind for sadhana entry.`);

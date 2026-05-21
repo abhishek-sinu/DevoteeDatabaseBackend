@@ -34,9 +34,34 @@ function generateOrderId() {
 router.get('/payment', async (req, res) => {
 	console.log('[Cashfree][payment] Environment:', req.query);
 	try {
-		// Accept user_details from frontend as query param
-		const user_details = req.query.user_details || {};
+    // Accept user_details from frontend as query param in object, JSON-string, or bracket syntax.
+    const rawUserDetails = req.query.user_details;
+    let user_details = {};
+    if (rawUserDetails && typeof rawUserDetails === 'object') {
+      user_details = rawUserDetails;
+    } else if (typeof rawUserDetails === 'string') {
+      try {
+        user_details = JSON.parse(rawUserDetails);
+      } catch {
+        user_details = {};
+      }
+    }
+
+    if (!Object.keys(user_details).length) {
+      user_details = {
+        customer_id: req.query['user_details[customer_id]'] || req.query.customer_id,
+        customer_phone: req.query['user_details[customer_phone]'] || req.query.customer_phone,
+        customer_name: req.query['user_details[customer_name]'] || req.query.customer_name,
+        customer_email: req.query['user_details[customer_email]'] || req.query.customer_email,
+      };
+    }
+
     const { customer_id, customer_phone, customer_name, customer_email } = user_details;
+    if (!customer_id || !customer_phone || !customer_name || !customer_email || !req.query.amount) {
+      return res.status(400).json({
+        error: 'Missing required payment params: amount, customer_id, customer_phone, customer_name, customer_email',
+      });
+    }
 		let request = {
 			order_amount: req.query.amount,
 			order_currency: 'INR',
@@ -49,7 +74,7 @@ router.get('/payment', async (req, res) => {
 			},
 			order_meta: {
 				payment_methods: 'upi',
-				return_url: 'https://yourapp.com/success?order_id={order_id}'
+				return_url: 'https://vaidhisadhanabhakti.cloud/dashboard?order_id={order_id}'
 			}
 		};
     console.log('[Cashfree][payment] Request payload:', request);
@@ -85,6 +110,7 @@ router.post('/verify', async (req, res) => {
 	try {
       let { orderId, duration } = req.body;
       const response = await cf.PGFetchOrder(orderId);
+  console.log('[Cashfree][verify] Verification process completed for orderId:', orderId, ', duration:', duration, ', response:', JSON.stringify(response.data));
       res.json(response.data);
       try {
         await db.execute(
@@ -159,7 +185,6 @@ router.post('/verify', async (req, res) => {
 		console.error(error?.response?.data || error.message);
 		res.status(500).json({ error: error?.response?.data?.message || 'Verification failed' });
 	}
-  console.log('[Cashfree][verify] Verification process completed for orderId:', req.body.orderId+", duration:", req.body.duration+", response:", JSON.stringify(response.data));
 });
 
 export default router;

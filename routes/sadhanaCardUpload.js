@@ -109,7 +109,7 @@ const sadhanaCardUpload = multer({
 // GET endpoint to fetch sadhana card file info
 router.get("/sadhana-card", async (req, res) => {
   const { email, month, year } = req.query;
-  console.log('GET /sadhana-card called with:', { email, month, year });
+  console.log(`GET /sadhana-card called for month=${month}, year=${year}, emailPresent=${Boolean(email)}`);
   if (!email || !month || !year) {
     console.log('Missing required query params');
     return res.status(400).json({ error: "Missing email, month, or year" });
@@ -120,12 +120,12 @@ router.get("/sadhana-card", async (req, res) => {
         "SELECT file_path FROM sadhana_cards WHERE email = ? AND month = ? AND year = ?",
         [email, month, year]
     );
-    console.log('Query result:', rows);
+    console.log(`Sadhana card records fetched: ${rows.length}`);
     if (rows.length === 0) {
       console.log('No sadhana card found for given params');
       return res.status(404).json({ error: "No sadhana card found" });
     }
-    console.log('Returning filePath:', rows[0].file_path);
+    console.log('Returning sadhana card file path');
     res.json({ filePath: rows[0].file_path });
   } catch (err) {
     console.error('Error fetching sadhana card:', err);
@@ -143,12 +143,12 @@ router.post("/upload-sadhana-card", sadhanaCardUpload.single("file"), async (req
     const filePath = `/uploads/sadhana-cards/${req.file.filename}`;
 
     // Check if a record exists for this email, month, and year
-    console.log('Checking for existing sadhana card:', { email, month, year });
+    console.log(`Checking for existing sadhana card for month=${month}, year=${year}, emailPresent=${Boolean(email)}`);
     const [rows] = await db.execute(
       "SELECT file_path FROM sadhana_cards WHERE email = ? AND month = ? AND year = ?",
       [email, month, year]
     );
-    console.log('Existing rows:', rows);
+    console.log(`Existing sadhana card records: ${rows.length}`);
     if (rows.length > 0) {
       // Delete the old file
       const oldFilePath = rows[0].file_path;
@@ -185,7 +185,7 @@ router.post("/upload-sadhana-card", sadhanaCardUpload.single("file"), async (req
 // Search devotees by name or email
 router.get('/devotees/search', async (req, res) => {
   const query = req.query.query;
-  console.log('GET /api/devotees/search called with query:', query);
+  console.log(`GET /api/devotees/search called. queryLength=${query ? query.trim().length : 0}`);
   if (!query || query.trim().length < 2) {
     console.log('Query too short or missing');
     return res.json([]);
@@ -199,7 +199,7 @@ router.get('/devotees/search', async (req, res) => {
        LIMIT 10`,
         [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]
     );
-    console.log('Search result:', rows);
+    console.log(`Devotee search records fetched: ${rows.length}`);
     res.json(rows);
   } catch (err) {
     console.error('Error searching devotees:', err);
