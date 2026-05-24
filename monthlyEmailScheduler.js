@@ -249,8 +249,8 @@ async function sendSadhanaEntryReminderEmail(user, todayStr, dayStr) {
   await transporter.sendMail(mailOptions);
 }
 
-// Schedule: Every day at 9:00 PM
-cron.schedule('0 21 * * *', async () => {
+// Schedule: Every day at 8:00 PM IST (14:30 UTC)
+cron.schedule('30 14 * * *', async () => {
   const now = new Date();
   const todayStr = now.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
   const dayStr = now.toLocaleDateString('en-IN', { weekday: 'long' });
