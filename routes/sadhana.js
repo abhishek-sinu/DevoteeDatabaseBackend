@@ -86,7 +86,10 @@ router.post('/predefined-templates', async (req, res) => {
         prasadam_honored,
         ekadashi_followed,
         japa_quality,
-        sixteen_round_completed_time
+        sixteen_round_completed_time,
+        day_sleep,
+        place,
+        guru_puja
     } = req.body;
     try {
         const now = new Date();
@@ -95,8 +98,9 @@ router.post('/predefined-templates', async (req, res) => {
                 sadhana_template, entry_date, wake_up_time, chanting_rounds, reading_time, reading_topic,
                 hearing_time, hearing_topic, service_name, service_time, sleeping_time, chanting_before_700,
                 chanting_before_730, attended_mangal_arati, attended_bhagavatam_class, book_distribution,
-                prasadam_honored, ekadashi_followed, japa_quality, sixteen_round_completed_time, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                prasadam_honored, ekadashi_followed, japa_quality, sixteen_round_completed_time,
+                day_sleep, place, guru_puja, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 entry_date = VALUES(entry_date),
                 wake_up_time = VALUES(wake_up_time),
@@ -117,6 +121,9 @@ router.post('/predefined-templates', async (req, res) => {
                 ekadashi_followed = VALUES(ekadashi_followed),
                 japa_quality = VALUES(japa_quality),
                 sixteen_round_completed_time = VALUES(sixteen_round_completed_time),
+                day_sleep = VALUES(day_sleep),
+                place = VALUES(place),
+                guru_puja = VALUES(guru_puja),
                 updated_at = VALUES(updated_at)
             `,
             [
@@ -140,6 +147,9 @@ router.post('/predefined-templates', async (req, res) => {
                 ekadashi_followed,
                 japa_quality,
                 !!sixteen_round_completed_time,
+                !!day_sleep,
+                !!place,
+                !!guru_puja,
                 now,
                 now
             ]
@@ -185,6 +195,9 @@ router.get('/predefined-templates', async (req, res) => {
             ekadashi_followed: !!row.ekadashi_followed,
             japa_quality: !!row.japa_quality,
             sixteen_round_completed_time: !!row.sixteen_round_completed_time,
+            day_sleep: !!row.day_sleep,
+            place: !!row.place,
+            guru_puja: !!row.guru_puja,
             created_at: row.created_at,
             updated_at: row.updated_at
         }));
@@ -221,7 +234,10 @@ const {
     ekadashiFollowed,
     japaQuality,
     sixteenRoundCompletedTime,
-    sixteen_round_completed_time // fallback for old clients
+    sixteen_round_completed_time, // fallback for old clients
+    daySleep,
+    place,
+    guruPuja
 } = req.body;
 
     // Helper to convert undefined to null
@@ -251,8 +267,9 @@ const {
                 chanting_before_700, chanting_before_730,
                 attended_mangal_arati, attended_bhagavatam_class,
                 book_distribution, prasadam_honored,
-                ekadashi_followed, japa_quality, sixteen_round_completed_time
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ekadashi_followed, japa_quality, sixteen_round_completed_time,
+                day_sleep, place, guru_puja
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         await db.execute(query, [
@@ -275,7 +292,10 @@ const {
     safe(prasadamHonored),
     safe(ekadashiFollowed),
     safe(japaQuality),
-    safe(sixteenRoundCompletedTime !== undefined ? sixteenRoundCompletedTime : sixteen_round_completed_time)
+    safe(sixteenRoundCompletedTime !== undefined ? sixteenRoundCompletedTime : sixteen_round_completed_time),
+    safe(daySleep),
+    safe(place),
+    safe(guruPuja)
 ]);
 
         res.status(201).json({ message: 'Sadhana entry added successfully' });
@@ -448,6 +468,9 @@ router.put('/entries/:id', async (req, res) => {
             ekadashi_followed: keepExistingIfBlank(pick('ekadashiFollowed', 'ekadashi_followed'), existing.ekadashi_followed),
             japa_quality: keepExistingIfBlank(pick('japaQuality', 'japa_quality'), existing.japa_quality),
             sixteen_round_completed_time: keepExistingIfBlank(pick('sixteenRoundCompletedTime', 'sixteen_round_completed_time'), existing.sixteen_round_completed_time),
+            day_sleep: keepExistingIfBlank(pick('daySleep', 'day_sleep'), existing.day_sleep),
+            place: keepExistingIfBlank(pick('place'), existing.place),
+            guru_puja: keepExistingIfBlank(pick('guruPuja', 'guru_puja'), existing.guru_puja),
         };
 
         const changedFields = Object.keys(payload).filter((key) => payload[key] !== existing[key]);
@@ -482,6 +505,9 @@ router.put('/entries/:id', async (req, res) => {
             payload.ekadashi_followed,
             payload.japa_quality,
             payload.sixteen_round_completed_time,
+            payload.day_sleep,
+            payload.place,
+            payload.guru_puja,
             id
         ];
         console.log('[Sadhana][Update by ID] Params:', params);
@@ -492,7 +518,7 @@ router.put('/entries/:id', async (req, res) => {
                 sleeping_time = ?, chanting_before_700 = ?, chanting_before_730 = ?,
                 attended_mangal_arati = ?, attended_bhagavatam_class = ?, book_distribution = ?,
                 prasadam_honored = ?, ekadashi_followed = ?, japa_quality = ?,
-                sixteen_round_completed_time = ?
+                sixteen_round_completed_time = ?, day_sleep = ?, place = ?, guru_puja = ?
             WHERE id = ?
         `;
 
@@ -652,7 +678,10 @@ router.get('/template/:id', async (req, res) => {
                 book_distribution: false,
                 prasadam_honored: false,
                 ekadashi_followed: false,
-                japa_quality: false
+                japa_quality: false,
+                day_sleep: false,
+                place: false,
+                guru_puja: false
             };
             console.log('[Sadhana][Template GET] Sending default response:', defaultTemplate);
             return res.status(200).json(defaultTemplate);
@@ -678,7 +707,10 @@ router.get('/template/:id', async (req, res) => {
             prasadam_honored: !!template.prasadam_honored,
             ekadashi_followed: !!template.ekadashi_followed,
             japa_quality: !!template.japa_quality,
-            sixteenRoundCompletedTime: !!template.sixteen_round_completed_time
+            sixteenRoundCompletedTime: !!template.sixteen_round_completed_time,
+            day_sleep: !!template.day_sleep,
+            place: !!template.place,
+            guru_puja: !!template.guru_puja
         };
         console.log('[Sadhana][Template GET] Sending response:', response);
         return res.status(200).json(response);
@@ -717,7 +749,10 @@ router.post('/template/:email', async (req, res) => {
         ekadashiFollowed,
         japaQuality,
         sixteenRoundCompletedTime,
-        sixteen_round_completed_time // fallback for old clients
+        sixteen_round_completed_time, // fallback for old clients
+        daySleep,
+        place,
+        guruPuja
     } = req.body;
     try {
         const now = new Date();
@@ -726,8 +761,9 @@ router.post('/template/:email', async (req, res) => {
                 user_email, devotee_id, entry_date, wake_up_time, chanting_rounds, reading_time, reading_topic,
                 hearing_time, hearing_topic, service_name, service_time, sleeping_time, chanting_before_700,
                 chanting_before_730, attended_mangal_arati, attended_bhagavatam_class, book_distribution,
-                prasadam_honored, ekadashi_followed, japa_quality, sixteen_round_completed_time, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                prasadam_honored, ekadashi_followed, japa_quality, sixteen_round_completed_time,
+                day_sleep, place, guru_puja, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 devotee_id = VALUES(devotee_id),
                 entry_date = VALUES(entry_date),
@@ -749,6 +785,9 @@ router.post('/template/:email', async (req, res) => {
                 ekadashi_followed = VALUES(ekadashi_followed),
                 japa_quality = VALUES(japa_quality),
                 sixteen_round_completed_time = VALUES(sixteen_round_completed_time),
+                day_sleep = VALUES(day_sleep),
+                place = VALUES(place),
+                guru_puja = VALUES(guru_puja),
                 updated_at = VALUES(updated_at)
             `,
             [
@@ -773,6 +812,9 @@ router.post('/template/:email', async (req, res) => {
                 bool(ekadashiFollowed),
                 bool(japaQuality),
                 bool(sixteenRoundCompletedTime !== undefined ? sixteenRoundCompletedTime : sixteen_round_completed_time),
+                bool(daySleep),
+                bool(place),
+                bool(guruPuja),
                 now,
                 now
             ]
