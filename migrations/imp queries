@@ -1,0 +1,11 @@
+use devotee_database;
+SELECT 
+    u.id,
+    u.email,
+    u.user_type,
+    d.first_name,
+    d.mobile_no
+FROM users u
+JOIN devotees d 
+    ON u.email = d.email
+WHERE u.user_type = 'premium'

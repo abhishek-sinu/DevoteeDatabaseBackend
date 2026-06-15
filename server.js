@@ -534,6 +534,48 @@ app.get('/api/users/premium-expiry', async (req, res) => {
   }
 });
 
+  // Get email notification preference by email
+app.get('/api/users/email-preference', async (req, res) => {
+  const email = req.query.userId;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  try {
+    const [rows] = await db.execute(
+      'SELECT email_notifications_enabled FROM users WHERE email = ?',
+      [email]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ email, email_notifications_enabled: rows[0].email_notifications_enabled === 1 });
+  } catch (err) {
+    console.error('Error fetching email preference:', err);
+    res.status(500).json({ error: 'Failed to fetch email preference', details: err.message });
+  }
+});
+
+  // Update email notification preference by email
+app.put('/api/users/email-preference', async (req, res) => {
+  const { userId: email, enabled } = req.body;
+  if (!email || typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'Email and boolean "enabled" are required' });
+  }
+  try {
+    const [result] = await db.execute(
+      'UPDATE users SET email_notifications_enabled = ? WHERE email = ?',
+      [enabled ? 1 : 0, email]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ email, email_notifications_enabled: enabled });
+  } catch (err) {
+    console.error('Error updating email preference:', err);
+    res.status(500).json({ error: 'Failed to update email preference', details: err.message });
+  }
+});
+
   // Send OTP to email using emailjs (node)
   app.post('/api/send-otp', async (req, res) => {
     const { email } = req.body;
