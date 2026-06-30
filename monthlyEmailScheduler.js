@@ -86,7 +86,14 @@ cron.schedule('0 9 1 * *', async () => {
   const now = new Date();
   console.log(`[SCHEDULER] Running monthly sadhana email job at ${now.toLocaleString()}`);
   try {
-    const [users] = await db.execute("SELECT email, first_name FROM devotees WHERE email IS NOT NULL AND email NOT IN (SELECT email FROM users WHERE email_notifications_enabled = 0)");
+    // Only send to users who have opted in (email_notifications_enabled = 1).
+    // First name comes from the matching devotee record when available.
+    const [users] = await db.execute(
+      `SELECT u.email, COALESCE(d.first_name, SUBSTRING_INDEX(u.email, '@', 1)) AS first_name
+         FROM users u
+         LEFT JOIN devotees d ON LOWER(TRIM(d.email)) = LOWER(TRIM(u.email))
+        WHERE u.email IS NOT NULL AND u.email_notifications_enabled = 1`
+    );
     console.log(`[SCHEDULER] Found ${users.length} users to email.`);
     for (const user of users) {
       try {
@@ -256,13 +263,14 @@ cron.schedule('30 14 * * *', async () => {
   const dayStr = now.toLocaleDateString('en-IN', { weekday: 'long' });
   console.log(`[SCHEDULER] Running daily sadhana entry reminder at ${now.toLocaleString()}`);
   try {
-    // Send to all users with a valid email (devotees and users) who have not opted out
-    // 1. From devotees table (exclude those who disabled email notifications in users table)
-    const [devotees] = await db.execute("SELECT email, first_name FROM devotees WHERE email IS NOT NULL AND email NOT IN (SELECT email FROM users WHERE email_notifications_enabled = 0)");
-    // 2. From users table
-    const [users] = await db.execute("SELECT email, SUBSTRING_INDEX(email, '@', 1) AS first_name FROM users WHERE email IS NOT NULL AND email_notifications_enabled = 1");
-    // Merge and deduplicate by email
-    const all = [...devotees, ...users].filter((v, i, a) => v.email && a.findIndex(t => t.email === v.email) === i);
+    // Only send to users who have opted in (email_notifications_enabled = 1).
+    // First name comes from the matching devotee record when available.
+    const [all] = await db.execute(
+      `SELECT u.email, COALESCE(d.first_name, SUBSTRING_INDEX(u.email, '@', 1)) AS first_name
+         FROM users u
+         LEFT JOIN devotees d ON LOWER(TRIM(d.email)) = LOWER(TRIM(u.email))
+        WHERE u.email IS NOT NULL AND u.email_notifications_enabled = 1`
+    );
     console.log(`[SCHEDULER] Found ${all.length} users to remind for sadhana entry.`);
     for (const user of all) {
       try {

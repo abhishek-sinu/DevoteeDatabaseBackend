@@ -785,8 +785,10 @@ app.post('/api/signup', async (req, res) => {
         );
         return res.json(rows);
       } else if (user.role === "admin") {
-        // Admin sees all devotees
-        const [rows] = await db.execute("SELECT * FROM devotees ORDER BY created_at DESC");
+        // Admin sees all devotees, including their account user_type and premium_expiry_date
+        const [rows] = await db.execute(
+          "SELECT d.*, u.user_type, u.premium_expiry_date FROM devotees d LEFT JOIN users u ON d.email = u.email ORDER BY d.created_at DESC"
+        );
         return res.json(rows);
       } else {
         // Other roles: restrict as needed
@@ -1119,6 +1121,36 @@ app.post('/api/signup', async (req, res) => {
     }
   });
 
+  // Admin: update a user's premium status (user_type + premium_expiry_date)
+  app.put("/api/users/premium-status", verifyToken, allowAdmin, async (req, res) => {
+    const { email, user_type, premium_expiry_date } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const validTypes = ["trial", "premium", "free"];
+    if (user_type && !validTypes.includes(user_type)) {
+      return res.status(400).json({ error: "Invalid user_type specified" });
+    }
+
+    try {
+      const [result] = await db.execute(
+          "UPDATE users SET user_type = ?, premium_expiry_date = ? WHERE email = ?",
+          [user_type || null, premium_expiry_date || null, email]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ message: `Premium status updated for ${email}` });
+    } catch (err) {
+      console.error("❌ Error updating premium status:", err);
+      res.status(500).json({ error: "Failed to update premium status", details: err.message });
+    }
+  });
+
   app.get("/api/users/by-email", verifyToken, allowAdmin, async (req, res) => {
     const { email } = req.query;
 
@@ -1140,6 +1172,101 @@ app.post('/api/signup', async (req, res) => {
     } catch (err) {
       console.error("❌ Error fetching user by email:", err);
       res.status(500).json({ error: "Failed to fetch user", details: err.message });
+    }
+  });
+
+  // Admin dashboard aggregate statistics
+  app.get("/api/admin/dashboard-stats", verifyToken, allowAdmin, async (req, res) => {
+    try {
+      const safeQuery = async (sql, params = []) => {
+        try {
+          const [rows] = await db.execute(sql, params);
+          return rows;
+        } catch (err) {
+          console.warn("dashboard-stats query skipped:", err.code || err.message);
+          return [];
+        }
+      };
+
+      // Devotees
+      const [[devoteeCount = { total: 0 }]] = [await safeQuery("SELECT COUNT(*) AS total FROM devotees")];
+      const genderRows = await safeQuery(
+        "SELECT COALESCE(NULLIF(TRIM(gender), ''), 'Unknown') AS label, COUNT(*) AS count FROM devotees GROUP BY label"
+      );
+      const fullTimeRows = await safeQuery(
+        "SELECT COALESCE(NULLIF(TRIM(full_time_devotee), ''), 'Unknown') AS label, COUNT(*) AS count FROM devotees GROUP BY label"
+      );
+
+      // Users
+      const [[userCount = { total: 0 }]] = [await safeQuery("SELECT COUNT(*) AS total FROM users")];
+      const roleRows = await safeQuery(
+        "SELECT role AS label, COUNT(*) AS count FROM users GROUP BY role"
+      );
+      const userTypeRows = await safeQuery(
+        "SELECT COALESCE(NULLIF(TRIM(user_type), ''), 'none') AS label, COUNT(*) AS count FROM users GROUP BY label"
+      );
+      const [[activePremium = { total: 0 }]] = [await safeQuery(
+        "SELECT COUNT(*) AS total FROM users WHERE user_type = 'premium' AND premium_expiry_date IS NOT NULL AND premium_expiry_date >= NOW()"
+      )];
+      const [[activeTrial = { total: 0 }]] = [await safeQuery(
+        "SELECT COUNT(*) AS total FROM users WHERE user_type = 'trial' AND premium_expiry_date IS NOT NULL AND premium_expiry_date >= NOW()"
+      )];
+      const [[expired = { total: 0 }]] = [await safeQuery(
+        "SELECT COUNT(*) AS total FROM users WHERE premium_expiry_date IS NOT NULL AND premium_expiry_date < NOW()"
+      )];
+
+      // Sadhana activity
+      const [[sadhanaTotal = { total: 0 }]] = [await safeQuery("SELECT COUNT(*) AS total FROM sadhana_entries")];
+      const [[sadhanaToday = { total: 0 }]] = [await safeQuery(
+        "SELECT COUNT(*) AS total FROM sadhana_entries WHERE entry_date = CURDATE()"
+      )];
+      const [[sadhana7 = { total: 0 }]] = [await safeQuery(
+        "SELECT COUNT(*) AS total FROM sadhana_entries WHERE entry_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)"
+      )];
+      const entriesTrend = await safeQuery(
+        "SELECT entry_date AS label, COUNT(*) AS count FROM sadhana_entries WHERE entry_date >= DATE_SUB(CURDATE(), INTERVAL 13 DAY) GROUP BY entry_date ORDER BY entry_date"
+      );
+
+      // Misc
+      const [[cardCount = { total: 0 }]] = [await safeQuery("SELECT COUNT(*) AS total FROM sadhana_cards")];
+      const [[notifCount = { total: 0 }]] = [await safeQuery("SELECT COUNT(*) AS total FROM notifications")];
+      const [[unreadNotif = { total: 0 }]] = [await safeQuery(
+        "SELECT COUNT(*) AS total FROM notifications WHERE status = 'unread'"
+      )];
+      const [[todoCount = { total: 0 }]] = [await safeQuery("SELECT COUNT(*) AS total FROM devotee_todos")];
+
+      const toMap = (rows) => rows.map((r) => ({ label: String(r.label), count: Number(r.count) }));
+
+      res.json({
+        devotees: {
+          total: Number(devoteeCount.total) || 0,
+          byGender: toMap(genderRows),
+          byFullTime: toMap(fullTimeRows),
+        },
+        users: {
+          total: Number(userCount.total) || 0,
+          byRole: toMap(roleRows),
+          byType: toMap(userTypeRows),
+          activePremium: Number(activePremium.total) || 0,
+          activeTrial: Number(activeTrial.total) || 0,
+          expired: Number(expired.total) || 0,
+        },
+        sadhana: {
+          totalEntries: Number(sadhanaTotal.total) || 0,
+          today: Number(sadhanaToday.total) || 0,
+          last7Days: Number(sadhana7.total) || 0,
+          trend: toMap(entriesTrend),
+        },
+        misc: {
+          sadhanaCards: Number(cardCount.total) || 0,
+          notifications: Number(notifCount.total) || 0,
+          unreadNotifications: Number(unreadNotif.total) || 0,
+          todos: Number(todoCount.total) || 0,
+        },
+      });
+    } catch (err) {
+      console.error("❌ Error building dashboard stats:", err);
+      res.status(500).json({ error: "Failed to build dashboard stats", details: err.message });
     }
   });
 

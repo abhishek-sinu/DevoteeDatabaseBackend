@@ -684,7 +684,7 @@ router.get('/template/:id', async (req, res) => {
                 guru_puja: false
             };
             console.log('[Sadhana][Template GET] Sending default response:', defaultTemplate);
-            return res.status(200).json(defaultTemplate);
+            return res.status(200).json({ ...defaultTemplate, templateExists: false });
         }
         // Return all boolean fields
         const template = rows[0];
@@ -710,7 +710,8 @@ router.get('/template/:id', async (req, res) => {
             sixteenRoundCompletedTime: !!template.sixteen_round_completed_time,
             day_sleep: !!template.day_sleep,
             place: !!template.place,
-            guru_puja: !!template.guru_puja
+            guru_puja: !!template.guru_puja,
+            templateExists: true
         };
         console.log('[Sadhana][Template GET] Sending response:', response);
         return res.status(200).json(response);
